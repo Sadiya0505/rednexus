@@ -1,0 +1,219 @@
+/* Login & Register Layout */
+.auth-page {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+}
+
+.auth-visual {
+    padding: 42px 8vw;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    background:
+        linear-gradient(110deg, rgba(17, 24, 39, 0.95), rgba(127, 29, 29, 0.7)),
+        url("https://images.unsplash.com/photo-1615461066841-6116e61058f4?auto=format&fit=crop&w=1400&q=80") center/cover;
+}
+
+.auth-visual .brand {
+    color: #fff;
+}
+
+.visual-copy {
+    max-width: 580px;
+    margin: auto 0;
+}
+
+.visual-copy h1 {
+    font-size: clamp(45px, 6vw, 82px);
+    line-height: 1.02;
+    letter-spacing: -0.06em;
+    margin: 10px 0 24px;
+}
+
+.visual-copy h1 em,
+.register-intro h1 em {
+    color: #f87171;
+    font-style: normal;
+}
+
+.visual-copy p:not(.eyebrow) {
+    max-width: 450px;
+    color: #e5e7eb;
+    font-size: 16px;
+    line-height: 1.7;
+}
+
+.impact-line {
+    display: flex;
+    gap: 35px;
+    margin-top: 48px;
+}
+
+.impact-line strong {
+    display: block;
+    font-size: 25px;
+}
+
+.impact-line span {
+    color: #cbd5e1;
+    font-size: 11px;
+}
+
+.auth-panel {
+    display: grid;
+    place-items: center;
+    padding: 40px;
+    background: #fff;
+}
+
+.auth-box {
+    width: min(100%, 420px);
+}
+
+.auth-box h2 {
+    font-size: 29px;
+    letter-spacing: -0.05em;
+    margin: 0 0 8px;
+}
+
+.auth-box form {
+    margin-top: 30px;
+}
+
+label {
+    display: block;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 17px;
+}
+
+.form-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.check-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--muted);
+}
+
+.check-label input {
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    accent-color: var(--red);
+}
+
+.divider {
+    border-top: 1px solid var(--line);
+    margin: 28px 0 22px;
+    text-align: center;
+}
+
+.divider span {
+    position: relative;
+    top: -9px;
+    padding: 0 12px;
+    background: #fff;
+    color: #94a3b8;
+    font-size: 11px;
+}
+
+.demo-hint {
+    color: #94a3b8;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-align: center;
+    margin-top: 25px;
+}
+
+/* Register */
+.register-page {
+    min-height: 100vh;
+    background: var(--wash);
+}
+
+.simple-header {
+    height: 76px;
+    padding: 0 5vw;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fff;
+    border-bottom: 1px solid var(--line);
+}
+
+.register-content {
+    width: min(1050px, calc(100% - 32px));
+    margin: auto;
+    padding: 65px 0;
+}
+
+.register-intro {
+    max-width: 650px;
+    margin-bottom: 45px;
+}
+
+.register-intro h1 {
+    font-size: 55px;
+    line-height: 1.05;
+    letter-spacing: -0.06em;
+    margin: 0 0 15px;
+}
+
+.registration-form {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 15px 40px rgba(15, 23, 42, 0.05);
+}
+
+.form-section {
+    padding: 33px 40px;
+    border-bottom: 1px solid var(--line);
+}
+
+.section-heading {
+    display: flex;
+    gap: 17px;
+    margin-bottom: 25px;
+}
+
+.section-heading > span {
+    color: var(--red);
+    font-family: var(--font-mono);
+    font-size: 12px;
+}
+
+.section-heading h3 {
+    margin: 0 0 4px;
+    font-size: 17px;
+}
+
+.section-heading p {
+    color: var(--muted);
+    margin: 0;
+    font-size: 12px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0 22px;
+}
+
+.form-actions {
+    padding: 24px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}

@@ -1,0 +1,147 @@
+{
+  "inventory": {
+    "A+": 29,
+    "A-": 12,
+    "B+": 8,
+    "B-": 5,
+    "AB+": 14,
+    "AB-": 4,
+    "O+": 3,
+    "O-": 9,
+    "Bombay": 2
+  },
+  "users": [
+    {
+      "id": "RN-DEMO-001",
+      "name": "Alex Morgan",
+      "email": "demo@rednexus.org",
+      "password": "nexus123",
+      "blood": "O+",
+      "mobile": "9876543210",
+      "city": "San Francisco",
+      "location": "Red Nexus Central",
+      "last": "2025-12-12",
+      "role": "Donor",
+      "password_hash": "$2b$10$WjxT2g5C.QUxcbNKVm2rdOrNEai4yHxK9OFokyXOpsTc1SW9D4O3S"
+    },
+    {
+      "id": "RN-69428",
+      "name": "Sadiya Sikandar Bairagdar",
+      "email": "sadiyabairgdar786786@gmail.com",
+      "password_hash": "$2b$10$xVxVQnDogUTGEm9g5dy0eusqDEXYaAuDool1zEa/Ac4Z6U76BjfwW",
+      "blood": "O+",
+      "mobile": "8723897876",
+      "city": "ichalkaranji",
+      "location": "Ichalkaranji",
+      "last": "2026-05-01",
+      "status": "Eligible",
+      "role": "Donor"
+    },
+    {
+      "id": "RN-38376",
+      "name": "Siddhi Patil",
+      "email": "patilsiddhiviajy26@gmail.com",
+      "password_hash": "$2b$10$L2flBtiLhaPKp9eCune.YOLchCXWvO2Nbt9CsKBEM6y1upMaHxyv.",
+      "blood": "O-",
+      "mobile": "8765432190",
+      "city": "Kolhapur",
+      "location": "Ichalkaranji",
+      "last": "2026-05-01",
+      "status": "Eligible",
+      "role": "Donor"
+    },
+    {
+      "id": "RN-63738",
+      "name": "Siddhi Patil",
+      "email": "patilsiddhiviajy26@gmail.com",
+      "password_hash": "$2b$10$EJLVbVM7ZWGueDHx3TD6xuEtsqfMFamgvVU3rd4lEZTN7OxkF9qJO",
+      "blood": "O+",
+      "mobile": "8765432190",
+      "city": "Kolhapur",
+      "location": "Ichalkaranji",
+      "last": "2026-05-01",
+      "status": "Eligible",
+      "role": "Donor"
+    }
+  ],
+  "donors": [
+    {
+      "id": "RN-63738",
+      "name": "Siddhi Patil",
+      "blood": "O+",
+      "mobile": "8765432190",
+      "city": "Kolhapur",
+      "last": "2026-05-01",
+      "status": "Eligible"
+    },
+    {
+      "id": "RN-38376",
+      "name": "Siddhi Patil",
+      "blood": "O-",
+      "mobile": "8765432190",
+      "city": "Kolhapur",
+      "last": "2026-05-01",
+      "status": "Eligible"
+    },
+    {
+      "id": "RN-69428",
+      "name": "Sadiya Sikandar Bairagdar",
+      "blood": "O+",
+      "mobile": "8723897876",
+      "city": "ichalkaranji",
+      "last": "2026-05-01",
+      "status": "Eligible"
+    },
+    {
+      "id": "RN-24081",
+      "name": "Maya Thompson",
+      "blood": "O+",
+      "mobile": "9876543210",
+      "city": "San Francisco",
+      "last": "2025-12-12",
+      "status": "Eligible"
+    },
+    {
+      "id": "RN-24076",
+      "name": "Daniel Okafor",
+      "blood": "A-",
+      "mobile": "9812345678",
+      "city": "Oakland",
+      "last": "2025-10-22",
+      "status": "Eligible"
+    },
+    {
+      "id": "RN-24064",
+      "name": "Sofia Martinez",
+      "blood": "B+",
+      "mobile": "9765432109",
+      "city": "Berkeley",
+      "last": "2025-08-03",
+      "status": "Due soon"
+    }
+  ],
+  "requests": [
+    {
+      "id": 1790836065258,
+      "patient": "Siddhi Patil",
+      "hospital": "JJ Magdum",
+      "contact": "7865432110",
+      "blood": "A+",
+      "units": 1,
+      "level": "High",
+      "status": "Fulfilled",
+      "date": "2026-10-01"
+    },
+    {
+      "id": 1,
+      "patient": "Harper James",
+      "hospital": "St. Mary's Medical Center",
+      "contact": "9898989898",
+      "units": 3,
+      "blood": "O-",
+      "level": "Critical",
+      "status": "Cancelled",
+      "date": "2026-08-26"
+    }
+  ]
+}

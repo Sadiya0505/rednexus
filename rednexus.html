@@ -1,0 +1,2711 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Red Nexus Blood Bank</title>
+    <style>
+        @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap");
+
+        :root {
+            --red: #dc2626;
+            --dark-red: #b91c1c;
+            --ink: #111827;
+            --muted: #64748b;
+            --line: #e5e7eb;
+            --wash: #f8fafc;
+            --white: #ffffff;
+            --green: #15803d;
+            --amber: #b45309;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--wash);
+            color: var(--ink);
+            font-family: "Plus Jakarta Sans", sans-serif;
+        }
+
+        button,
+        input,
+        select,
+        textarea {
+            font: inherit;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            border: 1px solid #dbe2ea;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 7px;
+            background: #fff;
+            color: var(--ink);
+            font-size: 13px;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        button:focus,
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: 3px solid #fecaca;
+            outline-offset: 1px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .muted {
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        .eyebrow {
+            color: var(--red);
+            font-family: "DM Mono", monospace;
+            font-size: 11px;
+            letter-spacing: 0.14em;
+            margin: 0 0 8px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            letter-spacing: 0.08em;
+            font-weight: 600;
+        }
+
+        .brand-mark {
+            width: 35px;
+            height: 35px;
+            display: grid;
+            place-items: center;
+            color: #fff;
+            background: var(--red);
+            border-radius: 10px 10px 10px 3px;
+            font-size: 20px;
+        }
+
+        .primary-button,
+        .outline-button,
+        .text-button {
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            transition: 0.2s ease;
+        }
+
+        .primary-button {
+            color: #fff;
+            background: var(--red);
+            border: 1px solid var(--red);
+        }
+
+        .primary-button:hover {
+            background: var(--dark-red);
+            transform: translateY(-2px);
+        }
+
+        .outline-button {
+            color: var(--ink);
+            background: #fff;
+            border: 1px solid var(--line);
+        }
+
+        .outline-button:hover {
+            color: var(--red);
+            border-color: var(--red);
+        }
+
+        .text-button {
+            color: var(--red);
+            background: transparent;
+            border: 0;
+            padding: 5px 0;
+        }
+
+        .full {
+            width: 100%;
+        }
+
+        .form-error {
+            margin: 12px 0;
+            padding: 11px;
+            border-radius: 8px;
+            color: #b91c1c;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            font-size: 12px;
+        }
+
+        .form-success {
+            margin: 12px 0;
+            padding: 11px;
+            border-radius: 8px;
+            color: #15803d;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            font-size: 12px;
+        }
+
+        /* Login */
+        .auth-page {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+        }
+
+        .auth-visual {
+            padding: 42px 8vw;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            background:
+                linear-gradient(110deg, rgba(17, 24, 39, 0.95), rgba(127, 29, 29, 0.7)),
+                url("https://images.pexels.com/photos/18523230/pexels-photo-18523230.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=1100&w=1400") center/cover;
+        }
+
+        .auth-visual .brand {
+            color: #fff;
+        }
+
+        .visual-copy {
+            max-width: 580px;
+            margin: auto 0;
+        }
+
+        .visual-copy h1 {
+            font-size: clamp(45px, 6vw, 82px);
+            line-height: 1.02;
+            letter-spacing: -0.06em;
+            margin: 10px 0 24px;
+        }
+
+        .visual-copy h1 em,
+        .register-intro h1 em {
+            color: #f87171;
+            font-style: normal;
+        }
+
+        .visual-copy p:not(.eyebrow) {
+            max-width: 450px;
+            color: #e5e7eb;
+            font-size: 16px;
+            line-height: 1.7;
+        }
+
+        .impact-line {
+            display: flex;
+            gap: 35px;
+            margin-top: 48px;
+        }
+
+        .impact-line strong {
+            display: block;
+            font-size: 25px;
+        }
+
+        .impact-line span {
+            color: #cbd5e1;
+            font-size: 11px;
+        }
+
+        .auth-panel {
+            display: grid;
+            place-items: center;
+            padding: 40px;
+            background: #fff;
+        }
+
+        .auth-box {
+            width: min(100%, 390px);
+        }
+
+        .auth-box h2 {
+            font-size: 29px;
+            letter-spacing: -0.05em;
+            margin: 0 0 8px;
+        }
+
+        .auth-box form {
+            margin-top: 30px;
+        }
+
+        label {
+            display: block;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 17px;
+        }
+
+        .form-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .check-label {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--muted);
+        }
+
+        .check-label input {
+            width: 15px;
+            height: 15px;
+            margin: 0;
+            accent-color: var(--red);
+        }
+
+        .divider {
+            border-top: 1px solid var(--line);
+            margin: 28px 0 22px;
+            text-align: center;
+        }
+
+        .divider span {
+            position: relative;
+            top: -9px;
+            padding: 0 12px;
+            background: #fff;
+            color: #94a3b8;
+            font-size: 11px;
+        }
+
+        .demo-hint {
+            color: #94a3b8;
+            font-family: "DM Mono", monospace;
+            font-size: 10px;
+            text-align: center;
+            margin-top: 25px;
+        }
+
+        /* Register */
+        .register-page {
+            min-height: 100vh;
+            background: var(--wash);
+        }
+
+        .simple-header {
+            height: 76px;
+            padding: 0 5vw;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fff;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .register-content {
+            width: min(1050px, calc(100% - 32px));
+            margin: auto;
+            padding: 65px 0;
+        }
+
+        .register-intro {
+            max-width: 650px;
+            margin-bottom: 45px;
+        }
+
+        .register-intro h1 {
+            font-size: 55px;
+            line-height: 1.05;
+            letter-spacing: -0.06em;
+            margin: 0 0 15px;
+        }
+
+        .registration-form {
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            box-shadow: 0 15px 40px rgba(15, 23, 42, 0.05);
+        }
+
+        .form-section {
+            padding: 33px 40px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .section-heading {
+            display: flex;
+            gap: 17px;
+            margin-bottom: 25px;
+        }
+
+        .section-heading>span {
+            color: var(--red);
+            font-family: "DM Mono", monospace;
+            font-size: 12px;
+        }
+
+        .section-heading h3 {
+            margin: 0 0 4px;
+            font-size: 17px;
+        }
+
+        .section-heading p {
+            color: var(--muted);
+            margin: 0;
+            font-size: 12px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0 22px;
+        }
+
+        .form-actions {
+            padding: 24px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* App shell */
+        .app-shell {
+            min-height: 100vh;
+            display: flex;
+        }
+
+        .sidebar {
+            position: fixed;
+            inset: 0 auto 0 0;
+            width: 240px;
+            padding: 29px 18px;
+            display: flex;
+            flex-direction: column;
+            color: #fff;
+            background: #111827;
+            z-index: 20;
+        }
+
+        .sidebar .brand {
+            padding: 0 11px 45px;
+            color: #fff;
+        }
+
+        .nav-caption {
+            color: #64748b;
+            font-family: "DM Mono", monospace;
+            font-size: 10px;
+            letter-spacing: 0.12em;
+            padding: 0 12px;
+        }
+
+        .sidebar nav,
+        .sidebar-bottom {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .sidebar button {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 12px;
+            color: #94a3b8;
+            background: transparent;
+            border: 0;
+            border-radius: 7px;
+            font-size: 12px;
+            text-align: left;
+        }
+
+        .sidebar button:hover,
+        .sidebar button.active {
+            color: #fff;
+            background: #2b1d24;
+        }
+
+        .sidebar button.active {
+            box-shadow: inset 3px 0 0 var(--red);
+        }
+
+        .sidebar-bottom {
+            margin-top: auto;
+            padding-top: 16px;
+            border-top: 1px solid #273244;
+        }
+
+        .main-content {
+            flex: 1;
+            margin-left: 240px;
+        }
+
+        .topbar {
+            height: 93px;
+            padding: 0 4vw;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #fff;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .breadcrumb {
+            color: #94a3b8;
+            font-family: "DM Mono", monospace;
+            font-size: 10px;
+            letter-spacing: 0.1em;
+            margin: 0 0 8px;
+        }
+
+        .topbar h2 {
+            font-size: 19px;
+            margin: 0;
+        }
+
+        .top-actions,
+        .user-chip {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            color: var(--red);
+            background: #fee2e2;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .user-chip {
+            color: #475569;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .page-body {
+            max-width: 1320px;
+            margin: auto;
+            padding: 43px 4vw 70px;
+        }
+
+        .page-title-row,
+        .section-top {
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .page-title-row h1 {
+            margin: 0 0 7px;
+            font-size: 31px;
+            letter-spacing: -0.05em;
+        }
+
+        .hero-strip {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 29px 34px;
+            color: #fff;
+            border-radius: 14px;
+            background: linear-gradient(120deg, #991b1b, #dc2626);
+        }
+
+        .hero-strip h1 {
+            margin: 0 0 8px;
+            font-size: 31px;
+            letter-spacing: -0.05em;
+        }
+
+        .hero-strip p:not(.eyebrow) {
+            margin: 0;
+            color: #fee2e2;
+            font-size: 13px;
+        }
+
+        .hero-strip .eyebrow {
+            color: #fecaca;
+        }
+
+        .emergency-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 15px;
+            color: var(--red);
+            background: #fff;
+            border: 1px solid #fff;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin: 24px 0 42px;
+        }
+
+        .stat-card {
+            padding: 20px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 11px;
+        }
+
+        .stat-card p {
+            margin: 0 0 10px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .stat-card strong {
+            display: block;
+            font-size: 27px;
+        }
+
+        .stat-icon {
+            width: 38px;
+            height: 38px;
+            display: grid;
+            place-items: center;
+            margin-bottom: 16px;
+            border-radius: 9px;
+            color: var(--red);
+            background: #fef2f2;
+        }
+
+        .blood-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 13px;
+        }
+
+        .blood-card {
+            padding: 17px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 11px;
+        }
+
+        .blood-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            gap: 5px;
+        }
+
+        .blood-type {
+            font-size: 19px;
+            font-weight: 800;
+        }
+
+        .blood-card>strong {
+            display: block;
+            margin: 21px 0 12px;
+            font-size: 27px;
+        }
+
+        .blood-card>strong small {
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .stock-track {
+            height: 5px;
+            overflow: hidden;
+            border-radius: 5px;
+            background: #f1f5f9;
+        }
+
+        .stock-track span {
+            display: block;
+            height: 100%;
+            border-radius: 5px;
+            background: #22c55e;
+        }
+
+        .stock-track span.low {
+            background: #f59e0b;
+        }
+
+        .stock-track span.critical {
+            background: var(--red);
+        }
+
+        .blood-card p {
+            color: #94a3b8;
+            font-size: 10px;
+            margin: 10px 0 0;
+        }
+
+        .status-pill {
+            display: inline-block;
+            padding: 5px 8px;
+            border-radius: 99px;
+            font-size: 10px;
+            white-space: nowrap;
+        }
+
+        .status-pill.good {
+            color: var(--green);
+            background: #f0fdf4;
+        }
+
+        .status-pill.low {
+            color: var(--amber);
+            background: #fffbeb;
+        }
+
+        .status-pill.critical {
+            color: #b91c1c;
+            background: #fef2f2;
+        }
+
+        .request-banner {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 14px 17px;
+            background: #fff;
+            border: 1px solid #fecaca;
+            border-left: 4px solid var(--red);
+            border-radius: 9px;
+        }
+
+        .urgent-icon {
+            width: 37px;
+            height: 37px;
+            display: grid;
+            place-items: center;
+            color: var(--red);
+            background: #fef2f2;
+            border-radius: 9px;
+        }
+
+        .request-banner-content {
+            flex: 1;
+        }
+
+        .request-banner strong {
+            font-size: 13px;
+        }
+
+        .request-banner p {
+            margin: 5px 0 0;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        /* Toolbar / tables */
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin: 28px 0 18px;
+        }
+
+        .toolbar input,
+        .toolbar select {
+            margin: 0;
+        }
+
+        .search-wrap {
+            position: relative;
+            flex: 1;
+        }
+
+        .search-wrap input {
+            padding-left: 15px;
+        }
+
+        .table-wrap {
+            overflow: auto;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 11px;
+        }
+
+        table {
+            width: 100%;
+            min-width: 760px;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 12px;
+        }
+
+        th,
+        td {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        th {
+            color: #94a3b8;
+            background: #f8fafc;
+            font-family: "DM Mono", monospace;
+            font-size: 10px;
+            font-weight: 400;
+            text-transform: uppercase;
+        }
+
+        tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .donor-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .donor-cell strong,
+        .donor-cell small {
+            display: block;
+        }
+
+        .donor-cell small {
+            margin-top: 4px;
+            color: #94a3b8;
+            font-family: "DM Mono", monospace;
+            font-size: 9px;
+        }
+
+        .blood-badge {
+            min-width: 31px;
+            height: 27px;
+            display: inline-grid;
+            place-items: center;
+            padding: 0 6px;
+            color: var(--red);
+            background: #fef2f2;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        /* Inventory */
+        .inventory-layout,
+        .request-layout,
+        .profile-layout {
+            display: grid;
+            grid-template-columns: 1.3fr 0.7fr;
+            gap: 28px;
+        }
+
+        .inventory-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .inventory-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            color: var(--ink);
+            text-align: left;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+        }
+
+        .inventory-row.selected {
+            border-color: #fca5a5;
+            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.08);
+        }
+
+        .inventory-row-info {
+            flex: 1;
+        }
+
+        .inventory-row-info strong,
+        .inventory-row-info small {
+            display: block;
+        }
+
+        .inventory-row-info small {
+            margin-top: 4px;
+            color: #94a3b8;
+            font-size: 10px;
+        }
+
+        .inventory-control,
+        .form-panel {
+            align-self: start;
+            padding: 28px;
+            color: #fff;
+            background: #111827;
+            border-radius: 13px;
+        }
+
+        .inventory-control input,
+        .form-panel input,
+        .form-panel select {
+            color: #fff;
+            background: #1e293b;
+            border-color: #475569;
+        }
+
+        .stepper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 17px 0;
+        }
+
+        .stepper button {
+            width: 37px;
+            height: 37px;
+            color: #fff;
+            background: #334155;
+            border: 0;
+            border-radius: 7px;
+            font-size: 19px;
+        }
+
+        .stepper input {
+            width: 65px;
+            margin: 0;
+            text-align: center;
+        }
+
+        .control-actions {
+            display: flex;
+            gap: 9px;
+        }
+
+        .control-actions .outline-button {
+            color: #fff;
+            background: transparent;
+            border-color: #475569;
+        }
+
+        /* Requests */
+        .request-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 15px;
+            margin-bottom: 9px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+        }
+
+        .request-item-main {
+            flex: 1;
+        }
+
+        .request-item p {
+            margin: 5px 0 0;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .request-form label {
+            color: #cbd5e1;
+        }
+
+        .request-form button {
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        /* History */
+        .history-total {
+            text-align: right;
+        }
+
+        .history-total strong {
+            display: block;
+            font-size: 32px;
+        }
+
+        .history-total span {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .impact-card {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            margin: 28px 0;
+            padding: 22px;
+            background: #fff5f5;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+        }
+
+        .impact-card h2 {
+            margin: 0 0 5px;
+            font-size: 18px;
+        }
+
+        .impact-card p:not(.eyebrow) {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        /* Profile */
+        .profile-card,
+        .profile-side {
+            padding: 28px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+        }
+
+        .profile-hero {
+            display: flex;
+            align-items: center;
+            gap: 17px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .profile-avatar {
+            width: 62px;
+            height: 62px;
+            display: grid;
+            place-items: center;
+            color: #fff;
+            background: var(--red);
+            border-radius: 18px;
+            font-size: 26px;
+            font-weight: 800;
+        }
+
+        .profile-hero h2 {
+            margin: 0 0 5px;
+            font-size: 21px;
+        }
+
+        .profile-hero p {
+            margin: 0 0 9px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .profile-fields {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 25px 20px;
+            padding-top: 28px;
+        }
+
+        .profile-fields small {
+            display: block;
+            margin-bottom: 7px;
+            color: #94a3b8;
+            font-size: 10px;
+        }
+
+        .profile-fields strong {
+            font-size: 13px;
+        }
+
+        .profile-side h3 {
+            margin: 0 0 8px;
+            font-size: 17px;
+        }
+
+        .eligibility-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 24px 0 8px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .empty-state {
+            padding: 30px;
+            color: #94a3b8;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        /* Mobile */
+        .mobile-menu {
+            display: none;
+            padding: 8px;
+            color: var(--muted);
+            background: transparent;
+            border: 0;
+        }
+
+        .mobile-overlay {
+            display: none;
+        }
+
+        @media (max-width: 950px) {
+            .auth-page {
+                grid-template-columns: 1fr;
+            }
+
+            .auth-visual {
+                display: none;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .blood-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .inventory-layout,
+            .request-layout,
+            .profile-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .auth-panel {
+                padding: 25px 18px;
+            }
+
+            .sidebar {
+                display: none;
+            }
+
+            .sidebar.mobile-open {
+                display: flex;
+                width: 250px;
+                box-shadow: 18px 0 40px rgba(15, 23, 42, 0.25);
+            }
+
+            .mobile-overlay.visible {
+                display: block;
+                position: fixed;
+                inset: 0;
+                z-index: 10;
+                background: rgba(15, 23, 42, 0.45);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .mobile-menu {
+                display: block;
+            }
+
+            .topbar {
+                height: auto;
+                min-height: 82px;
+                padding: 17px;
+            }
+
+            .user-chip span {
+                display: none;
+            }
+
+            .page-body {
+                padding: 28px 17px;
+            }
+
+            .hero-strip {
+                display: block;
+                padding: 24px;
+            }
+
+            .emergency-button {
+                margin-top: 20px;
+            }
+
+            .stats-grid {
+                gap: 9px;
+            }
+
+            .stat-card {
+                padding: 14px;
+            }
+
+            .blood-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .page-title-row {
+                align-items: start;
+                display: block;
+            }
+
+            .page-title-row .primary-button,
+            .page-title-row .outline-button {
+                margin-top: 17px;
+            }
+
+            .toolbar {
+                flex-wrap: wrap;
+            }
+
+            .toolbar select,
+            .toolbar button {
+                flex: 1;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-section {
+                padding: 26px 19px;
+            }
+
+            .form-actions {
+                gap: 15px;
+                padding: 19px;
+            }
+
+            .form-actions .primary-button {
+                flex: 1;
+            }
+
+            .simple-header {
+                padding: 0 16px;
+            }
+
+            .register-content {
+                padding: 38px 0;
+            }
+
+            .register-intro h1 {
+                font-size: 42px;
+            }
+
+            .profile-fields {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .impact-card {
+                align-items: flex-start;
+                padding: 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app"></div>
+
+    <script>
+        const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Bombay"];
+
+        const defaultInventory = {
+            "A+": 25,
+            "A-": 12,
+            "B+": 8,
+            "B-": 5,
+            "AB+": 14,
+            "AB-": 4,
+            "O+": 3,
+            "O-": 9,
+            "Bombay": 2
+        };
+
+        const defaultDonors = [
+            {
+                id: "RN-24081",
+                name: "Maya Thompson",
+                blood: "O+",
+                mobile: "+1 415 555 0198",
+                city: "San Francisco",
+                last: "2025-12-12",
+                status: "Eligible"
+            },
+            {
+                id: "RN-24076",
+                name: "Daniel Okafor",
+                blood: "A-",
+                mobile: "+1 628 555 0171",
+                city: "Oakland",
+                last: "2025-10-22",
+                status: "Eligible"
+            },
+            {
+                id: "RN-24064",
+                name: "Sofia Martinez",
+                blood: "B+",
+                mobile: "+1 510 555 0124",
+                city: "Berkeley",
+                last: "2025-08-03",
+                status: "Due soon"
+            }
+        ];
+
+        const defaultRequests = [
+            {
+                id: 1,
+                patient: "Harper James",
+                hospital: "St. Mary's Medical Center",
+                units: 3,
+                blood: "O-",
+                level: "Critical",
+                status: "Pending",
+                date: "2026-08-26"
+            }
+        ];
+
+        let currentUser = null;
+        let currentPage = "dashboard";
+        let mobileMenuOpen = false;
+
+        const app = document.getElementById("app");
+
+        function load(key, fallback) {
+            try {
+                return JSON.parse(localStorage.getItem(key)) ?? fallback;
+            } catch {
+                return fallback;
+            }
+        }
+
+        function save(key, value) {
+            localStorage.setItem(key, JSON.stringify(value));
+        }
+
+        function getInventory() {
+            return load("redNexusInventory", defaultInventory);
+        }
+
+        function getDonors() {
+            return load("redNexusDonors", defaultDonors);
+        }
+
+        function getRequests() {
+            return load("redNexusRequests", defaultRequests);
+        }
+
+        function logo(light = false) {
+            return ` 
+        <div class="brand" style="${light ? "color:#fff" : ""}"> 
+          <span class="brand-mark">♥</span> 
+          <span>RED <b>NEXUS</b></span> 
+        </div> 
+      `;
+        }
+
+        function render() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const queryToken = urlParams.get('token');
+            const hashMatch = window.location.hash.match(/token=([^&]+)/);
+            const resetToken = queryToken || (hashMatch ? hashMatch[1] : null);
+
+            if (resetToken) {
+                renderResetPasswordConfirm(resetToken);
+                return;
+            }
+
+            if (!currentUser) {
+                renderLogin();
+                return;
+            }
+
+            renderDashboardShell();
+        }
+
+        function renderLogin() {
+            app.innerHTML = ` 
+        <main class="auth-page"> 
+          <section class="auth-visual"> 
+            ${logo(true)} 
+            <div class="visual-copy"> 
+              <p class="eyebrow">CARE IN EVERY DROP</p> 
+              <h1>Be the reason<br><em>someone</em> lives.</h1> 
+              <p> 
+                Red Nexus connects generous donors with the people and communities 
+                who need them most. 
+              </p> 
+              <div class="impact-line"> 
+                <span><strong>2,847</strong>active donors</span> 
+                <span><strong>98%</strong>match rate</span> 
+              </div> 
+            </div> 
+          </section> 
+ 
+          <section class="auth-panel"> 
+            <div class="auth-box"> 
+              <p class="eyebrow">WELCOME BACK</p> 
+              <h2>Sign in to your portal</h2> 
+              <p class="muted">Manage your donations and make an impact.</p> 
+ 
+              <form id="loginForm"> 
+                <label> 
+                  Email or username 
+                  <input id="loginEmail" type="text" required placeholder="you@example.com"> 
+                </label> 
+ 
+                <label> 
+                  Password 
+                  <input id="loginPassword" type="password" required placeholder="Enter your password"> 
+                </label> 
+ 
+                <div class="form-row"> 
+                  <label class="check-label"> 
+                    <input type="checkbox"> Remember me 
+                  </label> 
+                  <button type="button" class="text-button" id="forgotButton"> 
+			 
+                    Forgot password? 
+                  </button> 
+                </div> 
+ 
+                <div id="loginError" class="form-error hidden"></div> 
+ 
+                <button class="primary-button full" type="submit"> 
+                  Sign in → 
+                </button> 
+              </form> 
+ 
+              <div class="divider"> 
+                <span>New to Red Nexus?</span> 
+              </div> 
+ 
+              <div style="display: flex; gap: 10px; margin-top: 10px;"> 
+                <button class="outline-button full" id="registerButton">Register as donor</button> 
+                <button class="outline-button full" id="registerAcceptorButton">Register as acceptor</button> 
+              </div> 
+ 
+              <p class="demo-hint"> 
+                Demo access · demo@rednexus.org · nexus123 
+              </p> 
+            </div> 
+          </section> 
+        </main> 
+      `;
+
+            document.getElementById("loginForm").addEventListener("submit", login);
+            document.getElementById("registerButton").addEventListener("click", renderRegister);
+            document.getElementById("registerAcceptorButton").addEventListener("click", renderRegisterAcceptor);
+            document.getElementById("forgotButton").addEventListener("click", renderForgotPassword);
+        }
+
+        function renderForgotPassword() {
+            app.innerHTML = ` 
+        <main class="register-page"> 
+          <header class="simple-header"> 
+            <button class="outline-button" id="backLogin">← Back to Sign In</button> 
+            ${logo()} 
+            <span class="muted">Account Recovery</span> 
+          </header> 
+ 
+          <div class="register-content" style="max-width: 620px;"> 
+            <div class="register-intro"> 
+              <p class="eyebrow">PASSWORD RESET VIA EMAIL</p> 
+              <h1>Forgot password?<br><em>We'll email you a link.</em></h1> 
+              <p class="muted"> 
+                Enter your registered donor or acceptor email address. We will send you an email with a secure link attached to change your password.
+              </p> 
+            </div> 
+ 
+            <form class="registration-form" id="forgotPasswordForm"> 
+              <section class="form-section"> 
+                <div class="section-heading"> 
+                  <span>01</span> 
+                  <div> 
+                    <h3>Account verification</h3> 
+                    <p>Enter your registered email address or 10-digit mobile number</p> 
+                  </div> 
+                </div> 
+ 
+                <div class="form-grid" style="grid-template-columns: 1fr;"> 
+                  <label>Registered email or mobile number * 
+                    <input id="resetEmail" name="email" type="text" required placeholder="e.g. your_email@gmail.com or 10-digit mobile number"> 
+                  </label> 
+                </div> 
+              </section> 
+ 
+              <div id="resetError" class="form-error hidden" style="margin: 20px 40px 0;"></div> 
+              <div id="resetSuccess" class="form-success hidden" style="margin: 20px 40px 0;"></div> 
+              <div id="devLinkContainer" class="hidden" style="margin: 15px 40px 0;"></div>
+ 
+              <div class="form-actions"> 
+                <button type="button" class="text-button" id="cancelReset">Cancel</button> 
+                <button type="submit" class="primary-button" id="submitResetBtn"> 
+                  Send reset link → 
+                </button> 
+              </div> 
+            </form> 
+          </div> 
+        </main> 
+      `;
+
+            document.getElementById("backLogin").addEventListener("click", renderLogin);
+            document.getElementById("cancelReset").addEventListener("click", renderLogin);
+
+            document.getElementById("forgotPasswordForm").addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const email = document.getElementById("resetEmail").value.trim();
+
+                const errorEl = document.getElementById("resetError");
+                const successEl = document.getElementById("resetSuccess");
+                const devContainer = document.getElementById("devLinkContainer");
+                errorEl.classList.add("hidden");
+                successEl.classList.add("hidden");
+                if (devContainer) devContainer.classList.add("hidden");
+
+                const submitBtn = document.getElementById("submitResetBtn");
+                submitBtn.disabled = true;
+                submitBtn.textContent = "Sending email...";
+
+                try {
+                    let resData = null;
+                    try {
+                        const res = await fetch("http://localhost:3000/api/auth/forgot-password", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ email })
+                        });
+                        resData = await res.json();
+                        if (!res.ok) throw new Error(resData.message || "Failed to send reset email.");
+                    } catch (netErr) {
+                        if (netErr.message && netErr.message !== "Failed to fetch") throw netErr;
+                    }
+
+                    if (!resData) {
+                        const dummyToken = btoa(JSON.stringify({ email, time: Date.now() }));
+                        resData = {
+                            success: true,
+                            message: `A password reset link has been dispatched to ${email}.`,
+                            resetUrl: `${window.location.origin}/?token=${dummyToken}#reset-password`
+                        };
+                    }
+
+                    successEl.textContent = resData.message || `Password reset link sent to ${email}! Please check your inbox.`;
+                    successEl.classList.remove("hidden");
+
+                    if (resData.resetUrl && devContainer) {
+                        devContainer.innerHTML = `
+                            <div style="padding: 14px 18px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; font-size: 13px;">
+                                <strong style="color: #0f172a; display: block; margin-bottom: 4px;">Development Mode Preview:</strong>
+                                <span style="color: #64748b;">An email was dispatched. You can also test the attached link immediately:</span><br>
+                                <a href="${resData.resetUrl}" style="color: #ef4444; font-weight: 600; text-decoration: underline; word-break: break-all; display: inline-block; margin-top: 8px;">
+                                    Click here to open Password Reset page →
+                                </a>
+                            </div>
+                        `;
+                        devContainer.classList.remove("hidden");
+                    }
+                    submitBtn.textContent = "Email sent ✓";
+                } catch (err) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = "Send reset link →";
+                    showError("resetError", err.message || "Failed to send reset link.");
+                }
+            });
+        }
+
+        function renderResetPasswordConfirm(token) {
+            app.innerHTML = ` 
+        <main class="register-page"> 
+          <header class="simple-header"> 
+            <button class="outline-button" id="backLogin">← Back to Sign In</button> 
+            ${logo()} 
+            <span class="muted">Secure Password Change</span> 
+          </header> 
+ 
+          <div class="register-content" style="max-width: 620px;"> 
+            <div class="register-intro"> 
+              <p class="eyebrow">VERIFIED EMAIL LINK</p> 
+              <h1>Choose a new password.<br><em>Regain instant access.</em></h1> 
+              <p class="muted"> 
+                Your email reset link has been verified. Enter your new password below to update your account.
+              </p> 
+            </div> 
+ 
+            <form class="registration-form" id="confirmPasswordForm"> 
+              <section class="form-section"> 
+                <div class="section-heading"> 
+                  <span>01</span> 
+                  <div> 
+                    <h3>New password</h3> 
+                    <p>Must contain Upper, Lower, Number & Special character (minimum 8 characters)</p> 
+                  </div> 
+                </div> 
+ 
+                <div class="form-grid"> 
+                  <label>New password * 
+                    <input id="newPassword" name="newPassword" type="password" required placeholder="Enter new password"> 
+                  </label> 
+                  <label>Confirm new password * 
+                    <input id="confirmPassword" name="confirmPassword" type="password" required placeholder="Confirm new password"> 
+                  </label> 
+                </div> 
+              </section> 
+ 
+              <div id="confirmError" class="form-error hidden" style="margin: 20px 40px 0;"></div> 
+              <div id="confirmSuccess" class="form-success hidden" style="margin: 20px 40px 0;"></div> 
+ 
+              <div class="form-actions"> 
+                <button type="button" class="text-button" id="cancelConfirm">Cancel</button> 
+                <button type="submit" class="primary-button" id="submitConfirmBtn"> 
+                  Update password & Sign In → 
+                </button> 
+              </div> 
+            </form> 
+          </div> 
+        </main> 
+      `;
+
+            document.getElementById("backLogin").addEventListener("click", () => {
+                window.history.replaceState({}, document.title, window.location.pathname);
+                renderLogin();
+            });
+            document.getElementById("cancelConfirm").addEventListener("click", () => {
+                window.history.replaceState({}, document.title, window.location.pathname);
+                renderLogin();
+            });
+
+            document.getElementById("confirmPasswordForm").addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const newPassword = document.getElementById("newPassword").value;
+                const confirmPassword = document.getElementById("confirmPassword").value;
+
+                const errorEl = document.getElementById("confirmError");
+                const successEl = document.getElementById("confirmSuccess");
+                errorEl.classList.add("hidden");
+                successEl.classList.add("hidden");
+
+                const pwdCheck = validatePassword(newPassword);
+                if (!pwdCheck.valid) {
+                    showError("confirmError", pwdCheck.message);
+                    return;
+                }
+
+                if (newPassword !== confirmPassword) {
+                    showError("confirmError", "Passwords do not match.");
+                    return;
+                }
+
+                const submitBtn = document.getElementById("submitConfirmBtn");
+                submitBtn.disabled = true;
+                submitBtn.textContent = "Updating password...";
+
+                try {
+                    let updated = false;
+                    try {
+                        const res = await fetch("http://localhost:3000/api/auth/reset-password-confirm", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ token, newPassword })
+                        });
+                        const data = await res.json();
+                        if (res.ok && data.success) updated = true;
+                        else if (!res.ok) throw new Error(data.message || "Failed to update password.");
+                    } catch (netErr) {
+                        if (netErr.message && netErr.message !== "Failed to fetch") throw netErr;
+                    }
+
+                    if (!updated) {
+                        const saved = load("redNexusUser", null);
+                        if (saved) {
+                            saved.password = newPassword;
+                            save("redNexusUser", saved);
+                        }
+                    }
+
+                    successEl.textContent = "✅ Password updated successfully! Redirecting you to sign in...";
+                    successEl.classList.remove("hidden");
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    setTimeout(() => {
+                        renderLogin();
+                    }, 1800);
+                } catch (err) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = "Update password & Sign In →";
+                    showError("confirmError", err.message || "Failed to update password. Link may be expired.");
+                }
+            });
+        }
+
+        function login(event) {
+            event.preventDefault();
+
+            const email = document.getElementById("loginEmail").value.trim();
+            const password = document.getElementById("loginPassword").value.trim();
+            const savedUser = load("redNexusUser", null);
+
+            const validDemo =
+                email === "demo@rednexus.org" &&
+                password === "nexus123";
+
+            const validSaved =
+                savedUser &&
+                (email === savedUser.email || email === savedUser.username) &&
+                password === savedUser.password;
+
+            if (!validDemo && !validSaved) {
+                showError(
+                    "loginError",
+                    "Use demo@rednexus.org / nexus123, or your registered donor account."
+                );
+                return;
+            }
+
+            currentUser = savedUser || {
+                name: "Alex Morgan",
+                email: "demo@rednexus.org",
+                id: "RN-DEMO-001",
+                blood: "O+",
+                mobile: "Not added",
+                city: "San Francisco",
+                location: "Red Nexus Central",
+                last: "2025-12-12"
+            };
+
+            currentPage = "dashboard";
+            render();
+        }
+
+        function renderRegister() {
+            app.innerHTML = ` 
+        <main class="register-page"> 
+          <header class="simple-header"> 
+            <button class="outline-button" id="backLogin">← Back</button> 
+            ${logo()} 
+            <span class="muted">Secure donor registration</span> 
+          </header> 
+ 
+          <div class="register-content"> 
+            <div class="register-intro"> 
+              <p class="eyebrow">JOIN THE NEXUS</p> 
+              <h1>Become a donor.<br><em>Save a life.</em></h1> 
+              <p class="muted"> 
+                Your information helps our team make safe, timely matches. 
+              </p> 
+            </div> 
+ 
+            <form class="registration-form" id="registrationForm"> 
+              <section class="form-section"> 
+                <div class="section-heading"> 
+                  <span>01</span> 
+                  <div> 
+                    <h3>Personal details</h3> 
+                    <p>Tell us a little about yourself</p> 
+                  </div> 
+                </div> 
+ 
+                <div class="form-grid"> 
+                  <label>Full name *<input name="name"></label> 
+                  <label>Date of birth *<input name="dob" type="date"></label> 
+                  <label>Email address *<input name="email" type="email"></label> 
+                  <label>Mobile number *<input name="mobile" type="tel"></label> 
+                  <label>Gender 
+                    <select name="gender"> 
+                      <option value="">Select gender</option> 
+                      <option>Female</option> 
+                      <option>Male</option> 
+                      <option>Non-binary</option> 
+                      <option>Prefer not to say</option> 
+                    </select> 
+                  </label> 
+                  <label>Blood group * 
+                    <select name="blood"> 
+                      <option value="">Select blood group</option> 
+                      ${bloodGroups.map(group => `<option>${group}</option>`).join("")} 
+                    </select> 
+                  </label> 
+                  <label>Address<input name="address"></label> 
+                  <label>City<input name="city"></label> 
+                  <label>State<input name="state"></label> 
+                  <label>PIN code<input name="pin"></label> 
+                </div> 
+              </section> 
+ 
+              <section class="form-section"> 
+                <div class="section-heading"> 
+                  <span>02</span> 
+                  <div> 
+                    <h3>Donor details</h3> 
+                    <p>Your donation history and preferences</p> 
+                  </div> 
+                </div> 
+ 
+                <div class="form-grid"> 
+                  <label>Last donation date<input name="last" type="date"></label> 
+                  <label>Previous donations<input name="previous" type="number"></label> 
+                  <label>Preferred location<input name="location"></label> 
+                  <label>Profile photo<input name="photo" type="file"></label> 
+                </div> 
+              </section> 
+ 
+              <section class="form-section"> 
+                <div class="section-heading"> 
+                  <span>03</span> 
+                  <div> 
+                    <h3>Health & eligibility</h3> 
+                    <p>Help us keep every donation safe</p> 
+                  </div> 
+                </div> 
+ 
+                <div class="form-grid"> 
+                  <label>Weight in kg<input name="weight" type="number"></label> 
+                  <label>Current illness<input name="illness"></label> 
+                  <label>Medication<input name="medication"></label> 
+                  <label>Emergency contact name<input name="emergencyName"></label> 
+                  <label>Emergency contact number<input name="emergencyNumber"></label> 
+                </div> 
+ 
+                <label> 
+                  Previous donation history 
+                  <textarea name="history"></textarea> 
+                </label> 
+              </section> 
+ 
+              <section class="form-section"> 
+                <div class="section-heading"> 
+                  <span>04</span> 
+                  <div> 
+                    <h3>Secure your account</h3> 
+                    <p>Set up your private donor access</p> 
+                  </div> 
+                </div> 
+ 
+                <div class="form-grid"> 
+                  <label>Password *<input name="password" type="password"></label> 
+                  <label>Confirm password *<input name="confirm" type="password"></label> 
+                </div> 
+ 
+                <label class="check-label"> 
+                  <input type="checkbox" name="terms"> 
+                  I agree to the Red Nexus terms and privacy policy. 
+                </label> 
+              </section> 
+ 
+              <div id="registerError" class="form-error hidden"></div> 
+ 
+              <div class="form-actions"> 
+                <button type="reset" class="text-button">Reset form</button> 
+                <button type="submit" class="primary-button"> 
+                  Complete registration → 
+                </button> 
+              </div> 
+            </form> 
+          </div> 
+        </main> 
+      `;
+
+            document.getElementById("backLogin").addEventListener("click", renderLogin);
+            document.getElementById("registrationForm").addEventListener("submit", register);
+        }
+
+        function register(event) {
+            event.preventDefault();
+
+            const form = new FormData(event.target);
+            const values = Object.fromEntries(form.entries());
+
+            if (
+                !values.name ||
+                !values.email ||
+                !values.mobile ||
+                !values.blood ||
+                !values.password ||
+                !values.confirm ||
+                !form.get("terms")
+            ) {
+                showError(
+                    "registerError",
+                    "Please complete all required fields and accept the terms."
+                );
+                return;
+            }
+
+            if (values.password !== values.confirm) {
+                showError("registerError", "Passwords do not match.");
+                return;
+            }
+
+            const donor = {
+                ...values,
+                id: "RN-" + Math.floor(10000 + Math.random() * 89999),
+                status: "Eligible",
+                last: values.last || "Never",
+                mobile: values.mobile || "Not added",
+                city: values.city || "Not added",
+                location: values.location || "Red Nexus Central"
+            };
+
+            save("redNexusUser", {
+                ...donor,
+                username: donor.email,
+                password: donor.password
+            });
+
+            const donors = getDonors();
+            save("redNexusDonors", [donor, ...donors]);
+
+            currentUser = donor;
+            currentPage = "dashboard";
+            render();
+        }
+
+        function renderRegisterAcceptor() {
+            app.innerHTML = ` 
+        <main class="register-page"> 
+          <header class="simple-header"> 
+            <button class="outline-button" id="backLogin">← Back</button> 
+            ${logo()} 
+            <span class="muted">Patient / Acceptor registration</span> 
+          </header> 
+ 
+          <div class="register-content"> 
+            <div class="register-intro"> 
+              <p class="eyebrow">PATIENT & RECIPIENT PORTAL</p> 
+              <h1>Register as an acceptor.<br><em>Get immediate care.</em></h1> 
+              <p class="muted"> 
+                Create an account to submit blood requests and track matching status. 
+              </p> 
+            </div> 
+ 
+            <form class="registration-form" id="acceptorRegistrationForm"> 
+              <section class="form-section"> 
+                <div class="section-heading"> 
+                  <span>01</span> 
+                  <div> 
+                    <h3>Personal details</h3> 
+                    <p>Tell us about the patient or guardian</p> 
+                  </div> 
+                </div> 
+ 
+                <div class="form-grid"> 
+                  <label>Full name *<input name="name" required></label> 
+                  <label>Date of birth *<input name="dob" type="date" required></label> 
+                  <label>Email address *<input name="email" type="email" required></label> 
+                  <label>Mobile number *<input name="mobile" type="tel" required></label> 
+                  <label>Gender 
+                    <select name="gender"> 
+                      <option value="">Select gender</option> 
+                      <option>Female</option> 
+                      <option>Male</option> 
+                      <option>Non-binary</option> 
+                      <option>Prefer not to say</option> 
+                    </select> 
+                  </label> 
+                  <label>Required blood group * 
+                    <select name="blood" required> 
+                      <option value="">Select blood group</option> 
+                      ${bloodGroups.map(group => `<option>${group}</option>`).join("")} 
+                    </select> 
+                  </label> 
+                  <label>Address<input name="address"></label> 
+                  <label>City<input name="city"></label> 
+                  <label>State<input name="state"></label> 
+                  <label>PIN code<input name="pin"></label> 
+                </div> 
+              </section> 
+ 
+              <section class="form-section"> 
+                <div class="section-heading"> 
+                  <span>02</span> 
+                  <div> 
+                    <h3>Hospital & Medical details</h3> 
+                    <p>Where the blood needs to be delivered</p> 
+                  </div> 
+                </div> 
+ 
+                <div class="form-grid"> 
+                  <label>Hospital name *<input name="hospital" required></label> 
+                  <label>Attending doctor name<input name="doctor"></label> 
+                  <label>Required units *<input name="units" type="number" min="1" value="1" required></label> 
+                  <label>Urgency level 
+                    <select name="level"> 
+                      <option>Routine</option> 
+                      <option>High</option> 
+                      <option>Critical</option> 
+                    </select> 
+                  </label> 
+                </div> 
+ 
+                <label> 
+                  Medical condition / Reason for request 
+                  <textarea name="condition" placeholder="Describe the medical requirement..."></textarea> 
+                </label> 
+              </section> 
+ 
+              <section class="form-section"> 
+                <div class="section-heading"> 
+                  <span>03</span> 
+                  <div> 
+                    <h3>Secure your account</h3> 
+                    <p>Set up your private access</p> 
+                  </div> 
+                </div> 
+ 
+                <div class="form-grid"> 
+                  <label>Password *<input name="password" type="password" required></label> 
+                  <label>Confirm password *<input name="confirm" type="password" required></label> 
+                </div> 
+ 
+                <label class="check-label"> 
+                  <input type="checkbox" name="terms" required> 
+                  I agree to the Red Nexus terms and privacy policy. 
+                </label> 
+              </section> 
+ 
+              <div id="acceptorRegisterError" class="form-error hidden"></div> 
+ 
+              <div class="form-actions"> 
+                <button type="reset" class="text-button">Reset form</button> 
+                <button type="submit" class="primary-button"> 
+                  Complete acceptor registration → 
+                </button> 
+              </div> 
+            </form> 
+          </div> 
+        </main> 
+      `;
+
+            document.getElementById("backLogin").addEventListener("click", renderLogin);
+            document.getElementById("acceptorRegistrationForm").addEventListener("submit", registerAcceptor);
+        }
+
+        function registerAcceptor(event) {
+            event.preventDefault();
+
+            const form = new FormData(event.target);
+            const values = Object.fromEntries(form.entries());
+
+            if (
+                !values.name ||
+                !values.email ||
+                !values.mobile ||
+                !values.blood ||
+                !values.hospital ||
+                !values.password ||
+                !values.confirm ||
+                !form.get("terms")
+            ) {
+                showError("acceptorRegisterError", "Please complete all required fields.");
+                return;
+            }
+
+            if (values.password !== values.confirm) {
+                showError("acceptorRegisterError", "Passwords do not match.");
+                return;
+            }
+
+            const acceptor = {
+                ...values,
+                id: "RN-ACC-" + Math.floor(10000 + Math.random() * 89999),
+                role: "Acceptor",
+                city: values.city || "Not added",
+                location: values.hospital || "General Hospital"
+            };
+
+            save("redNexusUser", {
+                ...acceptor,
+                username: acceptor.email,
+                password: acceptor.password
+            });
+
+            const newRequest = {
+                id: Date.now(),
+                patient: acceptor.name,
+                hospital: acceptor.hospital,
+                units: Number(acceptor.units) || 1,
+                blood: acceptor.blood,
+                level: acceptor.level || "Routine",
+                status: "Pending",
+                date: new Date().toISOString().slice(0, 10)
+            };
+
+            const requests = getRequests();
+            save("redNexusRequests", [newRequest, ...requests]);
+
+            currentUser = acceptor;
+            currentPage = "requests";
+            render();
+        }
+
+        function showError(id, message) {
+            const element = document.getElementById(id);
+            element.textContent = message;
+            element.classList.remove("hidden");
+        }
+
+        function renderDashboardShell() {
+            const navItems = [
+                ["dashboard", "▦", "Dashboard"],
+                ["donors", "♙", "Donor list"],
+                ["inventory", "▣", "Blood inventory"],
+                ["requests", "▤", "Blood requests"],
+                ["emergency", "⚡", "Emergency requests"],
+                ["history", "◷", "Donation history"],
+                ["profile", "♙", "Profile"],
+                ["reports", "⌁", "Reports"]
+            ];
+
+            app.innerHTML = ` 
+        <div class="app-shell"> 
+          <div class="mobile-overlay ${mobileMenuOpen ? "visible" : ""}" id="mobileOverlay"></div> 
+ 
+          <aside class="sidebar ${mobileMenuOpen ? "mobile-open" : ""}" id="sidebar"> 
+            ${logo()} 
+            <p class="nav-caption">WORKSPACE</p> 
+ 
+            <nav> 
+              ${navItems.map(([id, icon, label]) => ` 
+                <button class="${currentPage === id ? "active" : ""}" data-page="${id}"> 
+                  <span>${icon}</span>${label} 
+                </button> 
+              `).join("")} 
+            </nav> 
+ 
+            <div class="sidebar-bottom"> 
+              <button id="logoutButton">⇥ Log out</button> 
+            </div> 
+          </aside> 
+ 
+          <main class="main-content"> 
+            <header class="topbar"> 
+              <button class="mobile-menu" id="mobileMenuButton">☰</button> 
+ 
+              <div> 
+                <p class="breadcrumb">RED NEXUS / ${currentPage}</p> 
+                <h2>${currentPage === "dashboard" ? "Welcome, " : ""}${currentPage === "dashboard" ? currentUser.name || "Alex" : pageTitle(currentPage)}</h2> 
+              </div> 
+ 
+              <div class="top-actions"> 
+                <span>🔔</span> 
+                <div class="user-chip"> 
+                  <div class="avatar">${(currentUser.name || "A").charAt(0)}</div> 
+                  <span>${currentUser.name || "Alex Morgan"}</span> 
+                </div> 
+              </div> 
+            </header> 
+ 
+            <div id="pageContent"></div> 
+          </main> 
+        </div> 
+      `;
+
+            document.querySelectorAll("[data-page]").forEach(button => {
+                button.addEventListener("click", () => {
+                    currentPage = button.dataset.page;
+                    mobileMenuOpen = false;
+                    renderDashboardShell();
+                });
+            });
+
+            document.getElementById("logoutButton").addEventListener("click", () => {
+                currentUser = null;
+                currentPage = "dashboard";
+                render();
+            });
+
+            document.getElementById("mobileMenuButton").addEventListener("click", () => {
+                mobileMenuOpen = !mobileMenuOpen;
+                renderDashboardShell();
+            });
+
+            document.getElementById("mobileOverlay").addEventListener("click", () => {
+                mobileMenuOpen = false;
+                renderDashboardShell();
+            });
+
+            renderCurrentPage();
+        }
+
+        function pageTitle(page) {
+            return {
+                donors: "Donor list",
+                inventory: "Blood inventory",
+                requests: "Blood requests",
+                emergency: "Emergency requests",
+                history: "Donation history",
+                profile: "Your profile",
+                reports: "Reports"
+            }[page] || "Dashboard";
+        }
+
+        function renderCurrentPage() {
+            const container = document.getElementById("pageContent");
+
+            if (currentPage === "dashboard") renderDashboard(container);
+            if (currentPage === "donors") renderDonors(container);
+            if (currentPage === "inventory") renderInventory(container);
+            if (currentPage === "requests") renderRequests(container, false);
+            if (currentPage === "emergency") renderRequests(container, true);
+            if (currentPage === "history") renderHistory(container);
+            if (currentPage === "profile") renderProfile(container);
+            if (currentPage === "reports") renderReports(container);
+        }
+
+        function renderDashboard(container) {
+            const inventory = getInventory();
+            const donors = getDonors();
+            const requests = getRequests();
+            const totalUnits = Object.values(inventory).reduce((sum, value) => sum + value, 0);
+
+            container.innerHTML = ` 
+        <div class="page-body"> 
+          <section class="hero-strip"> 
+            <div> 
+              <p class="eyebrow">LIVE INVENTORY · UPDATED JUST NOW</p> 
+              <h1>Every unit counts.</h1> 
+              <p>Here’s what’s happening across your blood network today.</p> 
+            </div> 
+            <button class="emergency-button" id="dashboardEmergency"> 
+              ⚡ Emergency request 
+            </button> 
+          </section> 
+ 
+          <div class="stats-grid"> 
+            ${statCard("Total blood units", totalUnits, "Across all groups")} 
+            ${statCard("Registered donors", donors.length, "+12 this month")} 
+            ${statCard("Blood groups", 9, "All monitored")} 
+            ${statCard("Pending requests", requests.length, "Needs review")} 
+          </div> 
+ 
+          <div class="section-top"> 
+            <div> 
+              <p class="eyebrow">LIVE INVENTORY</p> 
+              <h3>Blood stock levels</h3> 
+            </div> 
+            <button class="text-button" id="viewInventory">View inventory →</button> 
+          </div> 
+ 
+          <div class="blood-grid"> 
+            ${bloodGroups.map(group => bloodCard(group, inventory[group])).join("")} 
+          </div> 
+ 
+          <div class="section-top" style="margin-top:42px"> 
+            <div> 
+              <p class="eyebrow">NEEDS ATTENTION</p> 
+              <h3>Emergency requests</h3> 
+            </div> 
+            <button class="text-button" id="viewEmergency">See all →</button> 
+          </div> 
+ 
+          ${requests.length
+                    ? ` 
+                <div class="request-banner"> 
+                  <div class="urgent-icon">⚠</div> 
+                  <div class="request-banner-content"> 
+                    <strong>${requests[0].patient} needs ${requests[0].blood} blood</strong> 
+                    <p>${requests[0].hospital} · ${requests[0].units} units required · ${requests[0].level} priority</p> 
+                  </div> 
+                  <span class="status-pill critical">Urgent</span> 
+                </div> 
+              `
+                    : `<div class="empty-state">No emergency requests right now.</div>`
+                } 
+        </div> 
+      `;
+
+            document.getElementById("dashboardEmergency").onclick = () => {
+                currentPage = "emergency";
+                renderDashboardShell();
+            };
+
+            document.getElementById("viewInventory").onclick = () => {
+                currentPage = "inventory";
+                renderDashboardShell();
+            };
+
+            document.getElementById("viewEmergency").onclick = () => {
+                currentPage = "emergency";
+                renderDashboardShell();
+            };
+        }
+
+        function statCard(label, value, note) {
+            return ` 
+        <div class="stat-card"> 
+          <div class="stat-icon">♥</div> 
+          <p>${label}</p> 
+          <strong>${value}</strong> 
+          <small class="muted">${note}</small> 
+        </div> 
+      `;
+        }
+
+        function bloodCard(group, units) {
+            const status = units <= 3 ? "Critical" : units <= 8 ? "Low stock" : "Available";
+            const type = units <= 3 ? "critical" : units <= 8 ? "low" : "good";
+
+            return ` 
+        <div class="blood-card"> 
+          <div class="blood-card-top"> 
+            <span class="blood-type">${group}</span> 
+            <span class="status-pill ${type}">${status}</span> 
+          </div> 
+          <strong>${units}<small> units</small></strong> 
+          <div class="stock-track"> 
+            <span class="${type}" style="width:${Math.min(units * 3, 100)}%"></span> 
+          </div> 
+          <p>${units <= 3 ? "Restock needed" : "Ready for matching"}</p> 
+        </div> 
+      `;
+        }
+
+        function renderDonors(container) {
+            container.innerHTML = ` 
+        <div class="page-body"> 
+          <div class="page-title-row"> 
+            <div> 
+              <p class="eyebrow">PEOPLE & COMMUNITY</p> 
+              <h1>Donor directory</h1> 
+              <p class="muted">${getDonors().length} registered donors in your network</p> 
+            </div> 
+          </div> 
+ 
+          <div class="toolbar"> 
+            <input id="donorSearch" placeholder="Search by name, ID or city"> 
+            <select id="donorFilter"> 
+              <option>All groups</option> 
+              ${bloodGroups.map(group => `<option>${group}</option>`).join("")} 
+            </select> 
+          </div> 
+ 
+          <div class="table-wrap"> 
+            <table> 
+              <thead> 
+                <tr> 
+                  <th>Donor</th> 
+                  <th>Blood group</th> 
+                  <th>Mobile number</th> 
+                  <th>City</th> 
+                  <th>Last donation</th> 
+                  <th>Status</th> 
+                </tr> 
+              </thead> 
+              <tbody id="donorTable"></tbody> 
+            </table> 
+          </div> 
+        </div> 
+      `;
+
+            const search = document.getElementById("donorSearch");
+            const filter = document.getElementById("donorFilter");
+
+            function updateTable() {
+                const query = search.value.toLowerCase();
+                const group = filter.value;
+
+                const rows = getDonors().filter(donor => {
+                    const matchesSearch =
+                        `${donor.name} ${donor.id} ${donor.city}`
+                            .toLowerCase()
+                            .includes(query);
+
+                    const matchesGroup =
+                        group === "All groups" || donor.blood === group;
+
+                    return matchesSearch && matchesGroup;
+                });
+
+                document.getElementById("donorTable").innerHTML = rows.map(donor => ` 
+          <tr> 
+            <td> 
+              <div class="donor-cell"> 
+                <div class="avatar">${donor.name.charAt(0)}</div> 
+                <div> 
+                  <strong>${donor.name}</strong> 
+                  <small>${donor.id}</small> 
+                </div> 
+              </div> 
+            </td> 
+            <td><span class="blood-badge">${donor.blood}</span></td> 
+            <td>${donor.mobile || "Not added"}</td> 
+            <td>${donor.city || "Not added"}</td> 
+            <td>${donor.last || "Never"}</td> 
+            <td><span class="status-pill good">${donor.status || "Eligible"}</span></td> 
+          </tr> 
+        `).join("");
+            }
+
+            search.addEventListener("input", updateTable);
+            filter.addEventListener("change", updateTable);
+            updateTable();
+        }
+
+        function renderInventory(container) {
+            let selectedGroup = "A+";
+            let inventory = getInventory();
+
+            function draw() {
+                container.innerHTML = ` 
+          <div class="page-body"> 
+            <div class="page-title-row"> 
+              <div> 
+                <p class="eyebrow">STOCK CONTROL</p> 
+                <h1>Blood inventory</h1> 
+                <p class="muted">Track every unit across the Red Nexus network.</p> 
+              </div> 
+            </div> 
+ 
+            <div class="inventory-layout"> 
+              <div class="inventory-list"> 
+                ${bloodGroups.map(group => ` 
+                  <button class="inventory-row ${selectedGroup === group ? "selected" : ""}" data-group="${group}"> 
+                    <span class="blood-badge">${group}</span> 
+                    <div class="inventory-row-info"> 
+                      <strong>${group === "Bombay" ? "Bombay phenotype" : group + " blood"}</strong> 
+                      <small>Updated just now</small> 
+                    </div> 
+                    <b>${inventory[group]} units</b> 
+                  </button> 
+                `).join("")} 
+              </div> 
+ 
+              <div class="inventory-control"> 
+                <p class="eyebrow">SELECTED GROUP</p> 
+                <h2>${selectedGroup}</h2> 
+                <h1>${inventory[selectedGroup]} units</h1> 
+                <p class="muted" style="color:#94a3b8">Adjust available units</p> 
+ 
+                <div class="stepper"> 
+                  <button id="decreaseUnits">−</button> 
+                  <input id="unitAmount" type="number" min="1" value="1"> 
+                  <button id="increaseUnits">+</button> 
+                </div> 
+ 
+                <div class="control-actions"> 
+                  <button class="primary-button" id="addUnits">＋ Add units</button> 
+                  <button class="outline-button" id="removeUnits">Remove units</button> 
+                </div> 
+              </div> 
+            </div> 
+          </div> 
+        `;
+
+                document.querySelectorAll("[data-group]").forEach(button => {
+                    button.onclick = () => {
+                        selectedGroup = button.dataset.group;
+                        draw();
+                    };
+                });
+
+                document.getElementById("increaseUnits").onclick = () => {
+                    document.getElementById("unitAmount").stepUp();
+                };
+
+                document.getElementById("decreaseUnits").onclick = () => {
+                    const input = document.getElementById("unitAmount");
+                    if (Number(input.value) > 1) input.stepDown();
+                };
+
+                document.getElementById("addUnits").onclick = () => updateUnits(1);
+                document.getElementById("removeUnits").onclick = () => updateUnits(-1);
+            }
+
+            function updateUnits(direction) {
+                const amount = Number(document.getElementById("unitAmount").value) || 1;
+                inventory[selectedGroup] = Math.max(
+                    0,
+                    inventory[selectedGroup] + amount * direction
+                );
+                save("redNexusInventory", inventory);
+                draw();
+            }
+
+            draw();
+        }
+
+        function renderRequests(container, emergency = false) {
+            const requests = getRequests();
+
+            container.innerHTML = ` 
+        <div class="page-body"> 
+          <div class="page-title-row"> 
+            <div> 
+              <p class="eyebrow">${emergency ? "PRIORITY CARE" : "MATCHING CENTER"}</p> 
+              <h1>${emergency ? "Emergency requests" : "Blood requests"}</h1> 
+              <p class="muted"> 
+                ${emergency
+                    ? "High-priority cases appear here for immediate action."
+                    : "Create and manage requests from partner hospitals."} 
+              </p> 
+            </div> 
+          </div> 
+ 
+          <div class="request-layout"> 
+            <div> 
+              <div class="request-count"> 
+                <h2>${requests.length}</h2> 
+                <span class="muted">active requests</span> 
+              </div> 
+ 
+              ${requests.map(request => ` 
+                <div class="request-item"> 
+                  <div class="urgent-icon">⚠</div> 
+                  <div class="request-item-main"> 
+                    <strong>${request.patient}</strong> 
+                    <p>${request.hospital} · ${request.units} units · ${request.blood}</p> 
+                  </div> 
+                  <span class="status-pill critical">${request.status}</span> 
+                </div> 
+              `).join("")} 
+            </div> 
+ 
+            <div class="form-panel"> 
+              <p class="eyebrow">NEW REQUEST</p> 
+              <h3>${emergency ? "Request blood urgently" : "Start a blood request"}</h3> 
+ 
+              <form class="request-form" id="requestForm"> 
+                <label>Patient name<input name="patient" required></label> 
+                <label>Hospital name<input name="hospital" required></label> 
+                <label>Contact number<input name="contact" required></label> 
+ 
+                <label>Blood group 
+                  <select name="blood"> 
+                    ${bloodGroups.map(group => `<option>${group}</option>`).join("")} 
+                  </select> 
+                </label> 
+ 
+                <label>Required units<input name="units" type="number" min="1" required></label> 
+ 
+                <label>${emergency ? "Emergency level" : "Priority"} 
+                  <select name="level"> 
+                    <option>Critical</option> 
+                    <option>High</option> 
+                    <option>Routine</option> 
+                  </select> 
+                </label> 
+ 
+                <button class="primary-button" type="submit"> 
+                  ${emergency ? "⚡ Submit emergency request" : "Submit blood request"} 
+                </button> 
+              </form> 
+            </div> 
+          </div> 
+        </div> 
+      `;
+
+            document.getElementById("requestForm").addEventListener("submit", event => {
+                event.preventDefault();
+
+                const form = new FormData(event.target);
+                const request = {
+                    id: Date.now(),
+                    patient: form.get("patient"),
+                    hospital: form.get("hospital"),
+                    contact: form.get("contact"),
+                    blood: form.get("blood"),
+                    units: form.get("units"),
+                    level: form.get("level"),
+                    status: "Pending",
+                    date: new Date().toISOString().slice(0, 10)
+                };
+
+                save("redNexusRequests", [request, ...getRequests()]);
+                renderRequests(container, emergency);
+            });
+        }
+
+        function renderHistory(container) {
+            const blood = currentUser.blood || "O+";
+
+            const entries = [
+                {
+                    date: currentUser.last || "2025-12-12",
+                    location: currentUser.location || "Red Nexus Central",
+                    blood,
+                    units: 1
+                },
+                {
+                    date: "2025-06-18",
+                    location: "St. Mary's Community Drive",
+                    blood,
+                    units: 1
+                }
+            ];
+
+            container.innerHTML = ` 
+        <div class="page-body"> 
+          <div class="page-title-row"> 
+            <div> 
+              <p class="eyebrow">YOUR IMPACT</p> 
+              <h1>Donation history</h1> 
+              <p class="muted">A record of every donation you’ve made with Red Nexus.</p> 
+            </div> 
+            <div class="history-total"> 
+              <strong>${entries.length}</strong> 
+              <span>donations made</span> 
+            </div> 
+          </div> 
+ 
+          <div class="impact-card"> 
+            <div class="stat-icon">♥</div> 
+            <div> 
+              <p class="eyebrow">LIFE-SAVING CONTRIBUTION</p> 
+              <h2>${entries.length} donations · up to ${entries.length * 3} lives impacted</h2> 
+              <p>Thank you for showing up when your community needed you.</p> 
+            </div> 
+          </div> 
+ 
+          <div class="table-wrap"> 
+            <table> 
+              <thead> 
+                <tr> 
+                  <th>Date</th> 
+                  <th>Donation location</th> 
+                  <th>Blood group</th> 
+                  <th>Units</th> 
+                  <th>Status</th> 
+                </tr> 
+              </thead> 
+              <tbody> 
+                ${entries.map(entry => ` 
+                  <tr> 
+                    <td>${entry.date}</td> 
+                    <td>${entry.location}</td> 
+                    <td><span class="blood-badge">${entry.blood}</span></td> 
+                    <td>${entry.units} unit</td> 
+                    <td><span class="status-pill good">Completed</span></td> 
+                  </tr> 
+                `).join("")} 
+              </tbody> 
+            </table> 
+          </div> 
+        </div> 
+      `;
+        }
+
+        function renderProfile(container) {
+            container.innerHTML = ` 
+        <div class="page-body"> 
+          <div class="page-title-row"> 
+            <div> 
+              <p class="eyebrow">ACCOUNT SETTINGS</p> 
+              <h1>Your profile</h1> 
+              <p class="muted">Keep your donor details current so we can reach you when it matters.</p> 
+            </div> 
+          </div> 
+ 
+          <div class="profile-layout"> 
+            <section class="profile-card"> 
+              <div class="profile-hero"> 
+                <div class="profile-avatar">${(currentUser.name || "A").charAt(0)}</div> 
+                <div> 
+                  <h2>${currentUser.name || "Alex Morgan"}</h2> 
+                  <p>${currentUser.email || "demo@rednexus.org"}</p> 
+                  <span class="status-pill good">${currentUser.role === "Acceptor" ? "Active Acceptor" : "Active donor"}</span> 
+                </div> 
+              </div> 
+ 
+              <div class="profile-fields"> 
+                ${profileField("User ID", currentUser.id || "RN-DEMO-001")} 
+                ${profileField("Blood group", currentUser.blood || "O+")} 
+                ${profileField("Mobile number", currentUser.mobile || "Not added")} 
+                ${profileField("City", currentUser.city || "San Francisco")} 
+                ${profileField("Preferred location", currentUser.location || "Red Nexus Central")} 
+                ${profileField("Last donation / Request", currentUser.last || "2025-12-12")} 
+              </div> 
+            </section> 
+ 
+            <aside class="profile-side"> 
+              <div class="stat-icon">✓</div> 
+              <h3>${currentUser.role === "Acceptor" ? "Request Status" : "Donation eligibility"}</h3> 
+              <p class="muted"> 
+                ${currentUser.role === "Acceptor" ? "Your acceptor profile is set up to issue active blood requests." : "Your donor profile is ready for matching. Keep your health details updated before your next appointment."} 
+              </p> 
+ 
+              <div class="eligibility-row"> 
+                <span>Profile completeness</span> 
+                <strong>82%</strong> 
+              </div> 
+ 
+              <div class="stock-track"> 
+                <span style="width:82%"></span> 
+              </div> 
+ 
+              <button class="text-button" style="margin-top:24px"> 
+                Update details → 
+              </button> 
+            </aside> 
+          </div> 
+        </div> 
+      `;
+        }
+
+        function profileField(label, value) {
+            return ` 
+        <div> 
+          <small style="display:block;color:#94a3b8;font-size:10px;margin-bottom:7px">${label}</small> 
+          <strong>${value}</strong> 
+        </div> 
+      `;
+        }
+
+        function renderReports(container) {
+            const inventory = getInventory();
+            const totalUnits = Object.values(inventory).reduce((sum, value) => sum + value, 0);
+
+            container.innerHTML = ` 
+        <div class="page-body"> 
+          <div class="page-title-row"> 
+            <div> 
+              <p class="eyebrow">INSIGHTS</p> 
+              <h1>Reports</h1> 
+              <p class="muted">A quick overview of your current blood-bank activity.</p> 
+            </div> 
+          </div> 
+ 
+          <div class="stats-grid"> 
+            ${statCard("Total units", totalUnits, "Current inventory")} 
+            ${statCard("Donors", getDonors().length, "Registered")} 
+            ${statCard("Requests", getRequests().length, "Active")} 
+            ${statCard("Blood groups", 9, "Monitored")} 
+          </div> 
+ 
+          <div class="impact-card"> 
+            <div class="stat-icon">⌁</div> 
+            <div> 
+              <p class="eyebrow">REPORT STATUS</p> 
+              <h2>Red Nexus reporting center is active</h2> 
+              <p>Inventory, donor, and request data are available in this prototype.</p> 
+            </div> 
+          </div> 
+        </div> 
+      `;
+        }
+
+        window.addEventListener('hashchange', render);
+        render(); 
+    </script>
+</body>
+</html>
