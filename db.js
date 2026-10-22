@@ -13,7 +13,9 @@ const dbConfig = {
     port: Number(process.env.DB_PORT) || 3306,
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+    // SSL required for cloud databases (Aiven, PlanetScale, etc.)
+    ...(process.env.DB_SSL === 'true' ? { ssl: { rejectUnauthorized: false } } : {})
 };
 
 let pool = null;
@@ -21,14 +23,17 @@ let isMySQLConnected = false;
 
 async function initDB() {
     try {
-        const rootConn = await mysql.createConnection({
-            host: dbConfig.host,
-            user: dbConfig.user,
-            password: dbConfig.password,
-            port: dbConfig.port
-        });
-        await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${dbConfig.database}\`;`);
-        await rootConn.end();
+        // On cloud (Aiven, etc.) the database already exists — skip CREATE DATABASE
+        if (process.env.DB_SSL !== 'true') {
+            const rootConn = await mysql.createConnection({
+                host: dbConfig.host,
+                user: dbConfig.user,
+                password: dbConfig.password,
+                port: dbConfig.port
+            });
+            await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${dbConfig.database}\`;`);
+            await rootConn.end();
+        }
 
         pool = mysql.createPool(dbConfig);
         const conn = await pool.getConnection();
