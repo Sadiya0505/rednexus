@@ -1,7 +1,8 @@
 node_modules/
 .env
-.env
 .env.*
 !.env.example
-node_modules/
-
+migrate.js
+*.log
+.DS_Store
+Thumbs.db

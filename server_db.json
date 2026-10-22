@@ -1,6 +1,6 @@
 {
   "inventory": {
-    "A+": 29,
+    "A+": 31,
     "A-": 12,
     "B+": 8,
     "B-": 5,
@@ -15,14 +15,19 @@
       "id": "RN-DEMO-001",
       "name": "Alex Morgan",
       "email": "demo@rednexus.org",
-      "password": "nexus123",
+      "password_hash": "$2b$12$Vq7xMryLzXdY.JaWE0yVpOUGBh3Nzju8OycPenJ5SQ.LBld5rgV46",
       "blood": "O+",
+      "blood_group": "O+",
       "mobile": "9876543210",
       "city": "San Francisco",
       "location": "Red Nexus Central",
       "last": "2025-12-12",
+      "last_donation": "2025-12-12",
       "role": "Donor",
-      "password_hash": "$2b$10$WjxT2g5C.QUxcbNKVm2rdOrNEai4yHxK9OFokyXOpsTc1SW9D4O3S"
+      "status": "Active",
+      "share_contact": false,
+      "reset_token_hash": "079183bbb5c974ee9a4f34849bdc1eb470dbd7bbddab4d58732f3bcafb70c13e",
+      "reset_expires": 1792625001530
     },
     {
       "id": "RN-69428",
@@ -62,9 +67,81 @@
       "last": "2026-05-01",
       "status": "Eligible",
       "role": "Donor"
+    },
+    {
+      "id": "RN-ACC-80372",
+      "name": "sadiya bairagdar",
+      "email": "sadiyabairagdar786@gmail.com",
+      "password_hash": "$2b$10$V94AN9MZCSePH1b3BGjOzuP8ro0/b0.w3UzvgAp.VKA2Fl2Ed7eJy",
+      "blood": "A+",
+      "mobile": "8765432190",
+      "city": "mumbai",
+      "location": "Bharti Hospital",
+      "role": "Acceptor",
+      "reset_token_hash": "9b70f379b40abc51a5463349b6395c722731b8cd3d870a89258c0141a32f847f",
+      "reset_expires": 1792625346708
+    },
+    {
+      "id": "RN-90762",
+      "name": "sikandar ibrahim bairagdar",
+      "email": "sikandarbairagdar750@gmail.com",
+      "password_hash": "$2b$10$nNjXIcx5Anm9viPiygVTIOADvTLxRjZ4fzTFnUpBEYn80vpuIMg/6",
+      "blood": "A+",
+      "mobile": "9226857862",
+      "city": "ichalkaranji",
+      "location": "Ichalkaranji",
+      "last": "2026-06-22",
+      "status": "Eligible",
+      "role": "Donor"
+    },
+    {
+      "id": "RN-74484",
+      "name": "Riya Patil",
+      "email": "riyapatil12@gmail.com",
+      "password_hash": "$2b$12$/OGK8e6CxAbyFYKp9HGa..Bqr9dugQ1R.Fr9QNA.jjLreWeWDqiim",
+      "blood": "Bombay",
+      "blood_group": "Bombay",
+      "mobile": "9226857862",
+      "city": "Kolhapur",
+      "location": "Ichalkaranji",
+      "last": "2026-02-22",
+      "status": "Eligible",
+      "role": "Donor",
+      "share_contact": 1
+    },
+    {
+      "id": "RN-ACC-91078",
+      "name": "Samiksha Patil",
+      "email": "samikshapatil750@gmail.com",
+      "password_hash": "$2b$12$/ThbNKlcGJm5B2sklpaSDuaQ6Gr4qpwO4Z8ZxOigeOAa5A2yjJMvG",
+      "blood": "B+",
+      "blood_group": "B+",
+      "mobile": "9226857862",
+      "city": "ichalkaranji",
+      "location": "JJ Magdum",
+      "role": "Acceptor"
     }
   ],
   "donors": [
+    {
+      "id": "RN-74484",
+      "name": "Riya Patil",
+      "blood": "Bombay",
+      "mobile": "9226857862",
+      "city": "Kolhapur",
+      "last": "2026-02-22",
+      "status": "Eligible",
+      "share_contact": 0
+    },
+    {
+      "id": "RN-90762",
+      "name": "sikandar ibrahim bairagdar",
+      "blood": "A+",
+      "mobile": "9226857862",
+      "city": "ichalkaranji",
+      "last": "2026-06-22",
+      "status": "Eligible"
+    },
     {
       "id": "RN-63738",
       "name": "Siddhi Patil",
@@ -122,6 +199,66 @@
   ],
   "requests": [
     {
+      "id": 1792619558340,
+      "patient": "Samiksha Patil",
+      "hospital": "JJ Magdum",
+      "contact": "9226857862",
+      "units": 1,
+      "blood": "B+",
+      "level": "High",
+      "status": "Pending",
+      "date": "2026-10-21",
+      "user_id": "RN-ACC-91078"
+    },
+    {
+      "id": 1792619270685,
+      "patient": "Siddhi Patil",
+      "hospital": "JJ Magdum",
+      "contact": "7865432110",
+      "blood": "AB-",
+      "units": 2,
+      "level": "High",
+      "status": "Pending",
+      "date": "2026-10-21",
+      "bank_id": null,
+      "user_id": "RN-ACC-80372"
+    },
+    {
+      "id": 1792617065577,
+      "patient": "Siddhi Patil",
+      "hospital": "JJ Magdum",
+      "contact": "7865432110",
+      "blood": "B+",
+      "units": 1,
+      "level": "Critical",
+      "status": "Pending",
+      "date": "2026-10-21",
+      "bank_id": null
+    },
+    {
+      "id": 1792615647099,
+      "patient": "Siddhi Patil",
+      "hospital": "JJ Magdum",
+      "contact": "7865432110",
+      "blood": "A+",
+      "units": 1,
+      "level": "Critical",
+      "status": "Pending",
+      "date": "2026-10-21",
+      "bank_id": null
+    },
+    {
+      "id": 1792609849414,
+      "patient": "sadiya bairagdar",
+      "hospital": "JJ Magdum",
+      "contact": "8765432190",
+      "units": 1,
+      "blood": "A+",
+      "level": "High",
+      "status": "Pending",
+      "date": "2026-10-21"
+    },
+    {
       "id": 1790836065258,
       "patient": "Siddhi Patil",
       "hospital": "JJ Magdum",
@@ -143,5 +280,7 @@
       "status": "Cancelled",
       "date": "2026-08-26"
     }
-  ]
+  ],
+  "blood_banks": [],
+  "passwordResets": []
 }

@@ -3,7 +3,9 @@ const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const db = require('./db.js');
 
@@ -14,14 +16,73 @@ const JWT_SECRET = process.env.JWT_SECRET || 'rednexus_super_secret_jwt_key_2026
 app.use(cors());
 app.use(express.json());
 
-// Initialize Database Connection (MySQL with JSON fallback)
+// ── Rate limiters ────────────────────────────────────────────────────────────
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 200,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: 'Too many requests, please try again later.' }
+});
+app.use('/api/', apiLimiter);
+
+const loginLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: 'Too many login attempts, please wait.' }
+});
+
+// ── DB Init ──────────────────────────────────────────────────────────────────
 db.initDB();
 
-// JWT Middleware
+// ── Admin bootstrap from environment ────────────────────────────────────────
+(async () => {
+    try {
+        const adminEmail = process.env.ADMIN_EMAIL;
+        const adminPass  = process.env.ADMIN_PASSWORD;
+        if (!adminEmail || !adminPass) return;
+
+        const passwordHash = await bcrypt.hash(adminPass, 12);
+
+        if (db.isMySQL()) {
+            const pool = db.getPool();
+            const [rows] = await pool.query('SELECT id FROM users WHERE email = ?', [adminEmail.toLowerCase()]);
+            if (rows.length === 0) {
+                const adminId = 'ADMIN-' + Date.now();
+                await pool.query(
+                    `INSERT INTO users (id, name, email, password_hash, role, blood_group, mobile) VALUES (?,?,?,?,?,?,?)`,
+                    [adminId, 'Administrator', adminEmail.toLowerCase(), passwordHash, 'Admin', 'O+', '']
+                );
+                console.log('✅ Initial admin user created in MySQL');
+            }
+        }
+
+        const jsonDB = db.readJSONDB();
+        const exists = jsonDB.users.find(u => u.email && u.email.toLowerCase() === adminEmail.toLowerCase());
+        if (!exists) {
+            jsonDB.users.push({
+                id: 'ADMIN-' + Date.now(),
+                name: 'Administrator',
+                email: adminEmail.toLowerCase(),
+                password_hash: passwordHash,
+                role: 'Admin',
+                blood: 'O+',
+                mobile: ''
+            });
+            db.writeJSONDB(jsonDB);
+            console.log('✅ Initial admin user added to JSON DB');
+        }
+    } catch (e) {
+        console.error('Admin provisioning error:', e.message);
+    }
+})();
+
+// ── Auth Middleware ──────────────────────────────────────────────────────────
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-
     if (!token) return res.status(401).json({ success: false, message: 'Access token required.' });
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
@@ -31,530 +92,747 @@ function authenticateToken(req, res, next) {
     });
 }
 
-// REST API Endpoints
-
-// 1. Auth - Login (JWT + Password Hashing)
-app.post('/api/auth/login', async (req, res) => {
-    const { email, password } = req.body;
-
-    if (db.isMySQL()) {
-        try {
-            const pool = db.getPool();
-            const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
-            const user = users[0];
-
-            if (user) {
-                const match = await bcrypt.compare(password, user.password_hash);
-                if (match || password === "nexus123") {
-                    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
-                    delete user.password_hash;
-                    return res.json({ success: true, token, user });
-                }
-            }
-        } catch (e) {
-            console.error('MySQL login query error:', e);
-        }
-    }
-
-    // JSON fallback / Demo login
-    const jsonDB = db.readJSONDB();
-    const cleanEmail = (email || '').trim().toLowerCase();
-    const user = jsonDB.users.find(u => (u.email && u.email.trim().toLowerCase() === cleanEmail) || (u.username && u.username.trim().toLowerCase() === cleanEmail));
-    const validDemo = cleanEmail === "demo@rednexus.org" && password === "nexus123";
-
-    if (user) {
-        let passwordMatches = false;
-        if (user.password_hash) {
-            passwordMatches = await bcrypt.compare(password, user.password_hash);
-        }
-        if (!passwordMatches && user.password && user.password === password) {
-            passwordMatches = true;
-        }
-        if (!passwordMatches && password === "nexus123") {
-            passwordMatches = true;
-        }
-
-        if (passwordMatches) {
-            const token = jwt.sign({ id: user.id, email: user.email, role: user.role || 'Donor' }, JWT_SECRET, { expiresIn: '24h' });
-            const sanitizedUser = { ...user };
-            delete sanitizedUser.password_hash;
-            return res.json({ success: true, token, user: sanitizedUser });
-        }
-    } else if (validDemo) {
-        const demoUser = jsonDB.users[0] || { id: "RN-DEMO-001", name: "Alex Morgan", email: "demo@rednexus.org", role: "Donor" };
-        const token = jwt.sign({ id: demoUser.id, email: demoUser.email, role: demoUser.role || 'Donor' }, JWT_SECRET, { expiresIn: '24h' });
-        return res.json({ success: true, token, user: demoUser });
-    }
-
-    return res.status(401).json({ success: false, message: "Invalid email or password." });
-});
-
-// 2. Auth - Register Donor
-app.post('/api/auth/register-donor', async (req, res) => {
-    const donorData = req.body;
-    const passwordHash = await bcrypt.hash(donorData.password || "nexus123", 10);
-    const donorId = "RN-" + Math.floor(10000 + Math.random() * 89999);
-
-    const newDonor = {
-        id: donorId,
-        name: donorData.name,
-        email: donorData.email,
-        password_hash: passwordHash,
-        blood: donorData.blood,
-        mobile: donorData.mobile,
-        city: donorData.city || "Not added",
-        location: donorData.location || "Red Nexus Central",
-        last: donorData.last || "Never",
-        status: "Eligible",
-        role: "Donor"
+function authorizeRoles(...roles) {
+    return (req, res, next) => {
+        if (!req.user) return res.status(401).json({ success: false, message: 'Not authenticated.' });
+        if (!roles.includes(req.user.role))
+            return res.status(403).json({ success: false, message: 'Insufficient permissions.' });
+        next();
     };
+}
 
-    if (db.isMySQL()) {
-        try {
-            const pool = db.getPool();
-            await pool.query(
-                `INSERT INTO users (id, name, email, password_hash, role, blood_group, mobile, city, location, last_donation) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [newDonor.id, newDonor.name, newDonor.email, newDonor.password_hash, 'Donor', newDonor.blood, newDonor.mobile, newDonor.city, newDonor.location, newDonor.last]
-            );
-            await pool.query(
-                `INSERT INTO donors (id, name, blood_group, mobile, city, last_donation, status) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [newDonor.id, newDonor.name, newDonor.blood, newDonor.mobile, newDonor.city, newDonor.last, 'Eligible']
-            );
-        } catch (e) {
-            console.error('MySQL register donor error:', e);
-        }
-    }
-
-    // Always keep JSON sync
-    const jsonDB = db.readJSONDB();
-    jsonDB.users.push(newDonor);
-    jsonDB.donors.unshift({
-        id: newDonor.id,
-        name: newDonor.name,
-        blood: newDonor.blood,
-        mobile: newDonor.mobile,
-        city: newDonor.city,
-        last: newDonor.last,
-        status: "Eligible"
-    });
-    db.writeJSONDB(jsonDB);
-
-    const token = jwt.sign({ id: newDonor.id, email: newDonor.email, role: 'Donor' }, JWT_SECRET, { expiresIn: '24h' });
-    res.json({ success: true, token, user: newDonor });
-});
-
-// 3. Auth - Register Acceptor
-app.post('/api/auth/register-acceptor', async (req, res) => {
-    const acceptorData = req.body;
-    const passwordHash = await bcrypt.hash(acceptorData.password || "nexus123", 10);
-    const acceptorId = "RN-ACC-" + Math.floor(10000 + Math.random() * 89999);
-
-    const newAcceptor = {
-        id: acceptorId,
-        name: acceptorData.name,
-        email: acceptorData.email,
-        password_hash: passwordHash,
-        blood: acceptorData.blood,
-        mobile: acceptorData.mobile,
-        city: acceptorData.city || "Not added",
-        location: acceptorData.hospital || "General Hospital",
-        role: "Acceptor"
-    };
-
-    const newRequest = {
-        id: Date.now(),
-        patient: acceptorData.name,
-        hospital: acceptorData.hospital,
-        contact: acceptorData.mobile,
-        units: Number(acceptorData.units) || 1,
-        blood: acceptorData.blood,
-        level: acceptorData.level || "Routine",
-        status: "Pending",
-        date: new Date().toISOString().slice(0, 10)
-    };
-
-    if (db.isMySQL()) {
-        try {
-            const pool = db.getPool();
-            await pool.query(
-                `INSERT INTO users (id, name, email, password_hash, role, blood_group, mobile, city, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [newAcceptor.id, newAcceptor.name, newAcceptor.email, newAcceptor.password_hash, 'Acceptor', newAcceptor.blood, newAcceptor.mobile, newAcceptor.city, newAcceptor.location]
-            );
-            await pool.query(
-                `INSERT INTO requests (patient, hospital, contact, blood, units, level, status, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                [newRequest.patient, newRequest.hospital, newRequest.contact, newRequest.blood, newRequest.units, newRequest.level, 'Pending', newRequest.date]
-            );
-        } catch (e) {
-            console.error('MySQL register acceptor error:', e);
-        }
-    }
-
-    const jsonDB = db.readJSONDB();
-    jsonDB.users.push(newAcceptor);
-    jsonDB.requests.unshift(newRequest);
-    db.writeJSONDB(jsonDB);
-
-    const token = jwt.sign({ id: newAcceptor.id, email: newAcceptor.email, role: 'Acceptor' }, JWT_SECRET, { expiresIn: '24h' });
-    res.json({ success: true, token, user: newAcceptor });
-});
-
-// Helper: Send Password Reset Email with Link
+// ── Email helper ─────────────────────────────────────────────────────────────
 async function sendResetEmail(recipientEmail, resetUrl) {
     const smtpConfigured = process.env.SMTP_USER && process.env.SMTP_PASS;
-    let transporter = null;
-
-    if (smtpConfigured) {
-        transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'smtp.gmail.com',
-            port: Number(process.env.SMTP_PORT) || 587,
-            secure: process.env.SMTP_SECURE === 'true',
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS
-            }
-        });
-    }
 
     const emailHtml = `
-    <!DOCTYPE html>
-    <html>
-    <head><meta charset="utf-8"></head>
-    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 24px; background: #f1f5f9;">
-        <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-            <div style="background: #0f172a; padding: 28px 32px; text-align: center;">
-                <h1 style="color: #ef4444; margin: 0; font-size: 26px; letter-spacing: -0.04em;">RED NEXUS</h1>
-                <p style="color: #94a3b8; font-size: 13px; margin: 6px 0 0 0;">Care in every drop · Blood Bank & Donor Portal</p>
-            </div>
-            <div style="padding: 32px;">
-                <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 12px;">Password Reset Request</h2>
-                <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 18px;">
-                    Hello, we received a request to reset the password for your Red Nexus account linked to <strong>${recipientEmail}</strong>.
-                </p>
-                <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 28px;">
-                    Click the button below to choose a new password. This link is secure and will expire in <strong>1 hour</strong>.
-                </p>
-                <div style="text-align: center; margin: 30px 0;">
-                    <a href="${resetUrl}" target="_blank" style="background: #ef4444; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">Reset Password →</a>
-                </div>
-                <p style="color: #64748b; font-size: 12px; line-height: 1.5; margin: 24px 0 0; border-top: 1px solid #f1f5f9; padding-top: 16px;">
-                    If the button above doesn't work, copy and paste this link into your browser:<br>
-                    <a href="${resetUrl}" style="color: #ef4444; word-break: break-all;">${resetUrl}</a>
-                </p>
-                <p style="color: #94a3b8; font-size: 12px; margin: 20px 0 0;">
-                    If you did not request a password reset, you can safely ignore this email. Your account remains secure.
-                </p>
-            </div>
-            <div style="background: #f8fafc; padding: 18px 32px; text-align: center; color: #94a3b8; font-size: 11px; border-top: 1px solid #e2e8f0;">
-                © Red Nexus Blood Bank. All rights reserved.
-            </div>
+    <!DOCTYPE html><html><head><meta charset="utf-8"></head>
+    <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin:0;padding:24px;background:#f1f5f9;">
+      <div style="max-width:580px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+        <div style="background:#0f172a;padding:28px 32px;text-align:center;">
+          <h1 style="color:#ef4444;margin:0;font-size:26px;letter-spacing:-0.04em;">RED NEXUS</h1>
+          <p style="color:#94a3b8;font-size:13px;margin:6px 0 0;">Blood Bank &amp; Donor Portal</p>
         </div>
-    </body>
-    </html>
-    `;
+        <div style="padding:32px;">
+          <h2 style="color:#1e293b;font-size:20px;margin:0 0 12px;">Password Reset Request</h2>
+          <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 28px;">
+            We received a request to reset the password for <strong>${recipientEmail}</strong>.<br>
+            This link expires in <strong>1 hour</strong>.
+          </p>
+          <div style="text-align:center;margin:30px 0;">
+            <a href="${resetUrl}" target="_blank"
+               style="background:#ef4444;color:#fff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;display:inline-block;">
+              Reset Password →
+            </a>
+          </div>
+          <p style="color:#64748b;font-size:12px;line-height:1.5;margin:24px 0 0;border-top:1px solid #f1f5f9;padding-top:16px;">
+            Or copy this link: <a href="${resetUrl}" style="color:#ef4444;word-break:break-all;">${resetUrl}</a>
+          </p>
+          <p style="color:#94a3b8;font-size:12px;margin:20px 0 0;">
+            If you didn't request this, ignore this email. Your account is safe.
+          </p>
+        </div>
+        <div style="background:#f8fafc;padding:18px 32px;text-align:center;color:#94a3b8;font-size:11px;border-top:1px solid #e2e8f0;">
+          © Red Nexus Blood Bank. All rights reserved.
+        </div>
+      </div>
+    </body></html>`;
 
-    if (transporter) {
+    if (smtpConfigured) {
         try {
+            const transporter = nodemailer.createTransport({
+                host: process.env.SMTP_HOST || 'smtp.gmail.com',
+                port: Number(process.env.SMTP_PORT) || 587,
+                secure: process.env.SMTP_SECURE === 'true',
+                auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+            });
             await transporter.sendMail({
-                from: process.env.EMAIL_FROM || '"Red Nexus Blood Bank" <no-reply@rednexus.org>',
+                from: process.env.EMAIL_FROM || '"Red Nexus" <no-reply@rednexus.org>',
                 to: recipientEmail,
-                subject: 'Red Nexus - Reset Your Password',
+                subject: 'Red Nexus – Reset Your Password',
                 html: emailHtml
             });
-            console.log(`✉️ Password reset email successfully sent to ${recipientEmail}`);
+            console.log(`✉️  Password reset email sent to ${recipientEmail}`);
             return { sent: true, mode: 'smtp' };
-        } catch (mailErr) {
-            console.warn(`⚠️ Failed to send via SMTP (${mailErr.message}), falling back to direct console link.`);
+        } catch (err) {
+            console.warn(`⚠️  SMTP send failed: ${err.message}`);
+            // Fall through to dev-mode logging
         }
     }
 
-    // Dev mode fallback: print clickable link to terminal
+    // Dev fallback – print to console only
     console.log('\n================================================================');
-    console.log('📧 [RED NEXUS PASSWORD RESET EMAIL SIMULATION]');
-    console.log(`Recipient: ${recipientEmail}`);
-    console.log(`Reset URL: ${resetUrl}`);
+    console.log('📧 [RED NEXUS DEV] Password Reset Link (SMTP not configured)');
+    console.log(`Recipient : ${recipientEmail}`);
+    console.log(`Reset URL : ${resetUrl}`);
     console.log('================================================================\n');
-
     return { sent: true, mode: 'local', resetUrl };
 }
 
-// 4. Auth - Request Password Reset Link (Sends Email)
-app.post('/api/auth/forgot-password', async (req, res) => {
-    const rawInput = (req.body.email || req.body.identifier || '').trim();
-    if (!rawInput) {
-        return res.status(400).json({ success: false, message: "Registered email address or mobile number is required." });
+// ════════════════════════════════════════════════════════════════════════════
+//  AUTH ROUTES
+// ════════════════════════════════════════════════════════════════════════════
+
+// POST /api/auth/login
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password)
+        return res.status(400).json({ success: false, message: 'Email and password are required.' });
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    // MySQL path
+    if (db.isMySQL()) {
+        try {
+            const pool = db.getPool();
+            // Check users table
+            let [rows] = await pool.query('SELECT * FROM users WHERE LOWER(email) = ?', [cleanEmail]);
+            if (rows.length) {
+                const user = rows[0];
+                const match = await bcrypt.compare(password, user.password_hash);
+                if (match) {
+                    const token = jwt.sign(
+                        { id: user.id, email: user.email, role: user.role, bank_id: user.bank_id || null },
+                        JWT_SECRET, { expiresIn: '24h' }
+                    );
+                    const safe = { ...user };
+                    delete safe.password_hash; delete safe.reset_token; delete safe.reset_token_hash; delete safe.reset_expires;
+                    return res.json({ success: true, token, user: safe });
+                }
+            }
+            // Check blood_banks table (BankManager login)
+            const [bankRows] = await pool.query('SELECT * FROM blood_banks WHERE LOWER(email) = ?', [cleanEmail]);
+            if (bankRows.length) {
+                const bank = bankRows[0];
+                if (!bank.password_hash) {
+                    return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+                }
+                const match = await bcrypt.compare(password, bank.password_hash);
+                if (match) {
+                    const bankUser = {
+                        id: bank.id,
+                        name: bank.name,
+                        email: bank.email,
+                        role: 'BankManager',
+                        bank_id: bank.id,
+                        bank_name: bank.name,
+                        bank_status: bank.status,
+                        manager_name: bank.manager_name,
+                        phone: bank.phone,
+                        address: bank.address,
+                        city: bank.city,
+                        reg_number: bank.reg_number
+                    };
+                    const token = jwt.sign(
+                        { id: bank.id, email: bank.email, role: 'BankManager', bank_id: bank.id, bank_status: bank.status },
+                        JWT_SECRET, { expiresIn: '24h' }
+                    );
+                    return res.json({ success: true, token, user: bankUser });
+                }
+            }
+        } catch (e) {
+            console.error('MySQL login error:', e.message);
+        }
     }
 
-    const cleanInput = rawInput.toLowerCase();
-    const cleanDigits = rawInput.replace(/[^0-9]/g, '');
-    let matchedUser = null;
+    // JSON fallback
+    const jsonDB = db.readJSONDB();
+    const user = jsonDB.users.find(u =>
+        (u.email && u.email.trim().toLowerCase() === cleanEmail) ||
+        (u.username && u.username.trim().toLowerCase() === cleanEmail)
+    );
+    if (user && user.password_hash) {
+        const match = await bcrypt.compare(password, user.password_hash);
+        if (match) {
+            const safe = { ...user };
+            delete safe.password_hash; delete safe.reset_token; delete safe.reset_token_hash; delete safe.reset_expires;
+            const token = jwt.sign(
+                { id: user.id, email: user.email, role: user.role || 'Donor', bank_id: user.bank_id || null },
+                JWT_SECRET, { expiresIn: '24h' }
+            );
+            return res.json({ success: true, token, user: safe });
+        }
+    }
+    // Check JSON blood banks
+    const bank = (jsonDB.blood_banks || []).find(b => b.email && b.email.toLowerCase() === cleanEmail);
+    if (bank && bank.password_hash) {
+        const match = await bcrypt.compare(password, bank.password_hash);
+        if (match) {
+            const bankUser = { id: bank.id, name: bank.name, email: bank.email, role: 'BankManager', bank_id: bank.id, bank_name: bank.name, bank_status: bank.status, manager_name: bank.manager_name };
+            const token = jwt.sign(
+                { id: bank.id, email: bank.email, role: 'BankManager', bank_id: bank.id, bank_status: bank.status },
+                JWT_SECRET, { expiresIn: '24h' }
+            );
+            return res.json({ success: true, token, user: bankUser });
+        }
+    }
+
+    return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+});
+
+// POST /api/auth/register-donor
+app.post('/api/auth/register-donor', async (req, res) => {
+    const d = req.body;
+    if (!d.name || !d.email || !d.password || !d.blood || !d.mobile)
+        return res.status(400).json({ success: false, message: 'Name, email, blood group, mobile and password are required.' });
+
+    const cleanEmail = d.email.trim().toLowerCase();
+    const passwordHash = await bcrypt.hash(d.password, 12);
+    const donorId = 'RN-' + Math.floor(10000 + Math.random() * 89999);
+
+    const newDonor = {
+        id: donorId,
+        name: d.name,
+        email: cleanEmail,
+        password_hash: passwordHash,
+        blood: d.blood,
+        blood_group: d.blood,
+        mobile: d.mobile,
+        city: d.city || '',
+        location: d.location || '',
+        last: d.last || 'Never',
+        status: 'Eligible',
+        role: 'Donor',
+        share_contact: d.share_contact ? 1 : 0
+    };
 
     if (db.isMySQL()) {
         try {
             const pool = db.getPool();
-            // 1. Try exact email match
-            let [rows] = await pool.query('SELECT * FROM users WHERE LOWER(TRIM(email)) = ?', [cleanInput]);
+            const [exists] = await pool.query('SELECT id FROM users WHERE email = ?', [cleanEmail]);
+            if (exists.length) return res.status(409).json({ success: false, message: 'Email already registered.' });
 
-            // 2. Try mobile number match (last 10 digits)
-            if (!rows.length && cleanDigits.length >= 10) {
-                [rows] = await pool.query('SELECT * FROM users WHERE mobile LIKE ?', [`%${cleanDigits.slice(-10)}`]);
-            }
-
-            // 3. Try username / prefix match (without domain)
-            if (!rows.length && !cleanInput.includes('@')) {
-                [rows] = await pool.query('SELECT * FROM users WHERE LOWER(email) LIKE ?', [`${cleanInput}@%`]);
-            }
-
-            // 4. Try typo-tolerant / fuzzy match for vowels/accents
-            if (!rows.length) {
-                const stripped = cleanInput.replace(/[^a-z0-9]/g, '').replace(/[aeiou]/g, '');
-                const [allUsers] = await pool.query('SELECT * FROM users');
-                const fuzzy = allUsers.find(u => {
-                    const uEmail = (u.email || '').toLowerCase();
-                    const uStripped = uEmail.replace(/[^a-z0-9]/g, '').replace(/[aeiou]/g, '');
-                    return uStripped === stripped || (cleanInput.length > 5 && uEmail.includes(cleanInput.split('@')[0]));
-                });
-                if (fuzzy) rows = [fuzzy];
-            }
-
-            if (rows && rows.length > 0) {
-                matchedUser = rows[0];
-            }
+            await pool.query(
+                `INSERT INTO users (id, name, email, password_hash, role, blood_group, mobile, city, location, last_donation, share_contact)
+                 VALUES (?, ?, ?, ?, 'Donor', ?, ?, ?, ?, ?, ?)`,
+                [donorId, newDonor.name, cleanEmail, passwordHash, newDonor.blood, newDonor.mobile, newDonor.city, newDonor.location, newDonor.last, newDonor.share_contact]
+            );
+            await pool.query(
+                `INSERT INTO donors (id, name, blood_group, mobile, city, last_donation, status, share_contact)
+                 VALUES (?, ?, ?, ?, ?, ?, 'Eligible', ?)`,
+                [donorId, newDonor.name, newDonor.blood, newDonor.mobile, newDonor.city, newDonor.last, newDonor.share_contact]
+            );
         } catch (e) {
-            console.error('MySQL forgot password query error:', e);
+            if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ success: false, message: 'Email already registered.' });
+            console.error('MySQL register-donor error:', e.message);
         }
     }
 
-    // Check JSON DB fallback
-    if (!matchedUser) {
-        const jsonDB = db.readJSONDB();
-        matchedUser = jsonDB.users.find(u => {
-            const uEmail = (u.email || '').trim().toLowerCase();
-            const uMobile = (u.mobile || '').replace(/[^0-9]/g, '');
-            const strippedInput = cleanInput.replace(/[^a-z0-9]/g, '').replace(/[aeiou]/g, '');
-            const strippedUser = uEmail.replace(/[^a-z0-9]/g, '').replace(/[aeiou]/g, '');
+    // JSON sync
+    const jsonDB = db.readJSONDB();
+    const jExists = jsonDB.users.find(u => u.email && u.email.toLowerCase() === cleanEmail);
+    if (jExists) return res.status(409).json({ success: false, message: 'Email already registered.' });
 
-            return uEmail === cleanInput ||
-                   (cleanDigits.length >= 10 && uMobile.endsWith(cleanDigits.slice(-10))) ||
-                   (!cleanInput.includes('@') && uEmail.startsWith(cleanInput + '@')) ||
-                   strippedUser === strippedInput ||
-                   (u.username && u.username.toLowerCase() === cleanInput);
-        });
-    }
-
-    if (!matchedUser && (cleanInput === 'demo' || cleanInput === 'demo@rednexus.org')) {
-        matchedUser = { email: 'demo@rednexus.org', name: 'Alex Morgan' };
-    }
-
-    if (!matchedUser) {
-        return res.status(404).json({
-            success: false,
-            message: `No account found for "${rawInput}". Please check the spelling or try entering your 10-digit mobile number.`
-        });
-    }
-
-    const targetEmail = matchedUser.email;
-
-    // Generate secure 1-hour signed JWT reset token
-    const resetToken = jwt.sign({ email: targetEmail, type: 'password_reset' }, JWT_SECRET, { expiresIn: '1h' });
-    const clientBase = process.env.CLIENT_URL || `http://localhost:${PORT}`;
-    const resetUrl = `${clientBase}/?token=${resetToken}#reset-password`;
-
-    const emailResult = await sendResetEmail(targetEmail, resetUrl);
-
-    return res.json({
-        success: true,
-        targetEmail: targetEmail,
-        message: `A password reset link has been generated and sent to ${targetEmail}. Please check your inbox.`,
-        resetUrl: emailResult.mode === 'local' ? resetUrl : undefined
+    jsonDB.users.push(newDonor);
+    jsonDB.donors.unshift({
+        id: donorId, name: newDonor.name, blood: newDonor.blood,
+        mobile: newDonor.mobile, city: newDonor.city, last: newDonor.last,
+        status: 'Eligible', share_contact: newDonor.share_contact
     });
+    db.writeJSONDB(jsonDB);
+
+    const token = jwt.sign({ id: donorId, email: cleanEmail, role: 'Donor', bank_id: null }, JWT_SECRET, { expiresIn: '24h' });
+    const safe = { ...newDonor }; delete safe.password_hash;
+    res.json({ success: true, token, user: safe });
 });
 
-// 5. Auth - Confirm Password Reset via Token
+// POST /api/auth/register-acceptor
+app.post('/api/auth/register-acceptor', async (req, res) => {
+    const d = req.body;
+    if (!d.name || !d.email || !d.password || !d.mobile)
+        return res.status(400).json({ success: false, message: 'Name, email, mobile and password are required.' });
+
+    const cleanEmail = d.email.trim().toLowerCase();
+    const passwordHash = await bcrypt.hash(d.password, 12);
+    const accId = 'RN-ACC-' + Math.floor(10000 + Math.random() * 89999);
+
+    const newAcceptor = {
+        id: accId, name: d.name, email: cleanEmail,
+        password_hash: passwordHash, blood: d.blood || '', blood_group: d.blood || '',
+        mobile: d.mobile, city: d.city || '', location: d.hospital || '',
+        role: 'Acceptor'
+    };
+
+    if (db.isMySQL()) {
+        try {
+            const pool = db.getPool();
+            const [exists] = await pool.query('SELECT id FROM users WHERE email = ?', [cleanEmail]);
+            if (exists.length) return res.status(409).json({ success: false, message: 'Email already registered.' });
+
+            await pool.query(
+                `INSERT INTO users (id, name, email, password_hash, role, blood_group, mobile, city, location)
+                 VALUES (?, ?, ?, ?, 'Acceptor', ?, ?, ?, ?)`,
+                [accId, newAcceptor.name, cleanEmail, passwordHash, newAcceptor.blood, newAcceptor.mobile, newAcceptor.city, newAcceptor.location]
+            );
+            if (d.hospital && d.blood && d.mobile) {
+                await pool.query(
+                    `INSERT INTO requests (patient, hospital, contact, blood, units, level, status, date, user_id)
+                     VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?, ?)`,
+                    [d.name, d.hospital, d.mobile, d.blood, Number(d.units) || 1, d.level || 'Routine', new Date().toISOString().slice(0, 10), accId]
+                );
+            }
+        } catch (e) {
+            if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ success: false, message: 'Email already registered.' });
+            console.error('MySQL register-acceptor error:', e.message);
+        }
+    }
+
+    const jsonDB = db.readJSONDB();
+    const jExists = jsonDB.users.find(u => u.email && u.email.toLowerCase() === cleanEmail);
+    if (jExists) return res.status(409).json({ success: false, message: 'Email already registered.' });
+
+    jsonDB.users.push(newAcceptor);
+    if (d.hospital) {
+        jsonDB.requests.unshift({
+            id: Date.now(), patient: d.name, hospital: d.hospital,
+            contact: d.mobile, units: Number(d.units) || 1, blood: d.blood,
+            level: d.level || 'Routine', status: 'Pending',
+            date: new Date().toISOString().slice(0, 10), user_id: accId
+        });
+    }
+    db.writeJSONDB(jsonDB);
+
+    const token = jwt.sign({ id: accId, email: cleanEmail, role: 'Acceptor', bank_id: null }, JWT_SECRET, { expiresIn: '24h' });
+    const safe = { ...newAcceptor }; delete safe.password_hash;
+    res.json({ success: true, token, user: safe });
+});
+
+// POST /api/auth/register-bank  (Public – creates Pending bank account)
+app.post('/api/auth/register-bank', async (req, res) => {
+    try {
+        const { name, manager_name, email, phone, address, city, reg_number, password } = req.body;
+        if (!name || !email || !password || !manager_name || !phone)
+            return res.status(400).json({ success: false, message: 'Bank name, manager name, email, phone and password are required.' });
+
+        const cleanEmail = email.trim().toLowerCase();
+        const passwordHash = await bcrypt.hash(password, 12);
+        const bankId = 'BANK-' + Date.now();
+
+        if (db.isMySQL()) {
+            const pool = db.getPool();
+            const [exists] = await pool.query('SELECT id FROM blood_banks WHERE email = ?', [cleanEmail]);
+            if (exists.length) return res.status(409).json({ success: false, message: 'Email already registered.' });
+
+            await pool.query(
+                `INSERT INTO blood_banks (id, name, manager_name, email, phone, address, city, reg_number, password_hash, status)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')`,
+                [bankId, name, manager_name, cleanEmail, phone, address || '', city || '', reg_number || '', passwordHash]
+            );
+            return res.json({ success: true, message: 'Blood bank registered! Pending admin approval before you can manage inventory.', bankId });
+        }
+
+        // JSON fallback
+        const jsonDB = db.readJSONDB();
+        const jExists = (jsonDB.blood_banks || []).find(b => b.email && b.email.toLowerCase() === cleanEmail);
+        if (jExists) return res.status(409).json({ success: false, message: 'Email already registered.' });
+
+        jsonDB.blood_banks = jsonDB.blood_banks || [];
+        jsonDB.blood_banks.push({ id: bankId, name, manager_name, email: cleanEmail, phone, address: address || '', city: city || '', reg_number: reg_number || '', password_hash: passwordHash, status: 'Pending' });
+        db.writeJSONDB(jsonDB);
+
+        return res.json({ success: true, message: 'Blood bank registered! Pending admin approval before you can manage inventory.', bankId });
+    } catch (e) {
+        console.error('register-bank error:', e.message);
+        return res.status(500).json({ success: false, message: 'Server error during registration.' });
+    }
+});
+
+// POST /api/auth/forgot-password
+app.post('/api/auth/forgot-password', async (req, res) => {
+    const rawInput = (req.body.email || '').trim();
+    if (!rawInput) return res.status(400).json({ success: false, message: 'Email is required.' });
+
+    const cleanInput = rawInput.toLowerCase();
+    let matchedEmail = null;
+
+    // Find user in MySQL or JSON
+    if (db.isMySQL()) {
+        try {
+            const pool = db.getPool();
+            const [rows] = await pool.query('SELECT email FROM users WHERE LOWER(email) = ?', [cleanInput]);
+            if (rows.length) matchedEmail = rows[0].email;
+            if (!matchedEmail) {
+                const [bRows] = await pool.query('SELECT email FROM blood_banks WHERE LOWER(email) = ?', [cleanInput]);
+                if (bRows.length) matchedEmail = bRows[0].email;
+            }
+        } catch (e) { console.error('Forgot password MySQL error:', e.message); }
+    }
+
+    if (!matchedEmail) {
+        const jsonDB = db.readJSONDB();
+        const u = jsonDB.users.find(u => u.email && u.email.toLowerCase() === cleanInput);
+        if (u) matchedEmail = u.email;
+        if (!matchedEmail) {
+            const b = (jsonDB.blood_banks || []).find(b => b.email && b.email.toLowerCase() === cleanInput);
+            if (b) matchedEmail = b.email;
+        }
+    }
+
+    // Generic response to prevent email enumeration
+    if (!matchedEmail) {
+        return res.json({ success: true, message: 'If that email is registered, a reset link has been sent.' });
+    }
+
+    // Generate secure token
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expires = Date.now() + 60 * 60 * 1000; // 1 hour
+
+    // Store hashed token
+    if (db.isMySQL()) {
+        try {
+            const pool = db.getPool();
+            await pool.query(
+                'UPDATE users SET reset_token_hash = ?, reset_expires = ? WHERE LOWER(email) = ?',
+                [tokenHash, expires, matchedEmail.toLowerCase()]
+            );
+        } catch (e) { console.error('Reset token store error:', e.message); }
+    }
+
+    const jsonDB = db.readJSONDB();
+    const jsonUser = jsonDB.users.find(u => u.email && u.email.toLowerCase() === matchedEmail.toLowerCase());
+    if (jsonUser) { jsonUser.reset_token_hash = tokenHash; jsonUser.reset_expires = expires; db.writeJSONDB(jsonDB); }
+    // Also store for banks in JSON
+    const jsonBank = (jsonDB.blood_banks || []).find(b => b.email && b.email.toLowerCase() === matchedEmail.toLowerCase());
+    if (jsonBank) { jsonBank.reset_token_hash = tokenHash; jsonBank.reset_expires = expires; db.writeJSONDB(jsonDB); }
+
+    const clientBase = process.env.CLIENT_URL || `http://localhost:${PORT}`;
+    // Use /reset path — clean URL that the SPA handles via a dedicated redirect
+    const resetUrl = `${clientBase}/reset?token=${rawToken}`;
+
+    const emailResult = await sendResetEmail(matchedEmail, resetUrl);
+
+    const resp = { success: true, message: 'If that email is registered, a reset link has been sent.' };
+    return res.json(resp);
+});
+
+// POST /api/auth/reset-password-confirm
 app.post('/api/auth/reset-password-confirm', async (req, res) => {
     const { token, newPassword } = req.body;
+    if (!token || !newPassword)
+        return res.status(400).json({ success: false, message: 'Token and new password are required.' });
 
-    if (!token || !newPassword) {
-        return res.status(400).json({ success: false, message: "Reset token and new password are required." });
-    }
+    if (newPassword.length < 6)
+        return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
 
-    let decoded;
-    try {
-        decoded = jwt.verify(token, JWT_SECRET);
-    } catch (err) {
-        if (err.name === 'TokenExpiredError') {
-            return res.status(400).json({ success: false, message: "The password reset link has expired. Please request a new one." });
-        }
-        return res.status(400).json({ success: false, message: "Invalid or corrupted reset token." });
-    }
-
-    if (!decoded || decoded.type !== 'password_reset' || !decoded.email) {
-        return res.status(400).json({ success: false, message: "Invalid reset token." });
-    }
-
-    const cleanEmail = decoded.email.trim().toLowerCase();
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const now = Date.now();
+    const passwordHash = await bcrypt.hash(newPassword, 12);
     let updated = false;
 
     if (db.isMySQL()) {
         try {
             const pool = db.getPool();
-            const [result] = await pool.query('UPDATE users SET password_hash = ? WHERE LOWER(email) = ?', [passwordHash, cleanEmail]);
-            if (result && result.affectedRows > 0) {
+            const [rows] = await pool.query(
+                'SELECT id FROM users WHERE reset_token_hash = ? AND reset_expires > ?',
+                [tokenHash, now]
+            );
+            if (rows.length) {
+                await pool.query(
+                    'UPDATE users SET password_hash = ?, reset_token_hash = NULL, reset_expires = NULL WHERE id = ?',
+                    [passwordHash, rows[0].id]
+                );
                 updated = true;
             }
-        } catch (e) {
-            console.error('MySQL reset password confirm error:', e);
-        }
+        } catch (e) { console.error('Reset confirm MySQL error:', e.message); }
     }
 
     const jsonDB = db.readJSONDB();
-    const jsonUser = jsonDB.users.find(u => (u.email && u.email.toLowerCase() === cleanEmail) || (u.username && u.username.toLowerCase() === cleanEmail));
+    const jsonUser = jsonDB.users.find(u => u.reset_token_hash === tokenHash && u.reset_expires > now);
     if (jsonUser) {
         jsonUser.password_hash = passwordHash;
-        jsonUser.password = newPassword;
+        jsonUser.reset_token_hash = null;
+        jsonUser.reset_expires = null;
         db.writeJSONDB(jsonDB);
         updated = true;
-    } else if (cleanEmail === "demo@rednexus.org") {
+    }
+    const jsonBank = (jsonDB.blood_banks || []).find(b => b.reset_token_hash === tokenHash && b.reset_expires > now);
+    if (jsonBank) {
+        jsonBank.password_hash = passwordHash;
+        jsonBank.reset_token_hash = null;
+        jsonBank.reset_expires = null;
+        db.writeJSONDB(jsonDB);
         updated = true;
     }
 
-    if (!updated) {
-        return res.status(404).json({ success: false, message: "Account associated with this reset link was not found." });
-    }
+    if (!updated)
+        return res.status(400).json({ success: false, message: 'Reset link is invalid or has expired. Please request a new one.' });
 
-    return res.json({
-        success: true,
-        message: "Your password has been reset successfully! You can now sign in with your new password."
-    });
+    return res.json({ success: true, message: 'Password updated successfully! You can now sign in.' });
 });
 
-// 6. Direct Reset (Legacy / Profile)
+// POST /api/auth/reset-password  (direct – legacy)
 app.post('/api/auth/reset-password', async (req, res) => {
-    const { email, mobile, newPassword } = req.body;
-
-    if (!email || !newPassword) {
-        return res.status(400).json({ success: false, message: "Email and new password are required." });
-    }
+    const { email, newPassword } = req.body;
+    if (!email || !newPassword)
+        return res.status(400).json({ success: false, message: 'Email and new password required.' });
 
     const cleanEmail = email.trim().toLowerCase();
-    const cleanMobile = mobile ? mobile.trim() : '';
-    const passwordHash = await bcrypt.hash(newPassword, 10);
-    let userFound = false;
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    let found = false;
 
     if (db.isMySQL()) {
         try {
             const pool = db.getPool();
-            const [users] = await pool.query('SELECT * FROM users WHERE LOWER(email) = ?', [cleanEmail]);
-            const user = users[0];
-
-            if (user) {
-                if (cleanMobile && user.mobile && user.mobile.trim() !== cleanMobile) {
-                    return res.status(400).json({
-                        success: false,
-                        message: "The entered mobile number does not match our records for this account."
-                    });
-                }
-
-                await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, user.id]);
-                userFound = true;
-            }
-        } catch (e) {
-            console.error('MySQL reset password error:', e);
-        }
+            const [r] = await pool.query('UPDATE users SET password_hash = ? WHERE LOWER(email) = ?', [passwordHash, cleanEmail]);
+            if (r.affectedRows > 0) found = true;
+        } catch (e) { console.error(e.message); }
     }
 
-    // Sync / fallback with JSON DB
     const jsonDB = db.readJSONDB();
-    const jsonUser = jsonDB.users.find(u => (u.email && u.email.toLowerCase() === cleanEmail) || (u.username && u.username.toLowerCase() === cleanEmail));
+    const u = jsonDB.users.find(u => u.email && u.email.toLowerCase() === cleanEmail);
+    if (u) { u.password_hash = passwordHash; db.writeJSONDB(jsonDB); found = true; }
 
-    if (jsonUser) {
-        if (cleanMobile && jsonUser.mobile && jsonUser.mobile.trim() !== cleanMobile) {
-            return res.status(400).json({
-                success: false,
-                message: "The entered mobile number does not match our records for this account."
-            });
-        }
-        jsonUser.password_hash = passwordHash;
-        jsonUser.password = newPassword;
-        db.writeJSONDB(jsonDB);
-        userFound = true;
-    } else if (cleanEmail === "demo@rednexus.org") {
-        userFound = true;
-    }
-
-    if (!userFound) {
-        return res.status(404).json({
-            success: false,
-            message: "No registered donor or acceptor account found with this email address."
-        });
-    }
-
-    return res.json({
-        success: true,
-        message: "Password updated successfully! You can now sign in with your new password."
-    });
+    if (!found) return res.status(404).json({ success: false, message: 'Account not found.' });
+    return res.json({ success: true, message: 'Password updated.' });
 });
 
-// 7. Inventory API
-app.get('/api/inventory', async (req, res) => {
+// ── Profile ───────────────────────────────────────────────────────────────────
+// GET /api/profile  – returns full profile of the authenticated user
+app.get('/api/profile', authenticateToken, async (req, res) => {
+    const { id, role, bank_id } = req.user;
+
+    if (role === 'BankManager') {
+        if (db.isMySQL()) {
+            try {
+                const pool = db.getPool();
+                const [rows] = await pool.query('SELECT id,name,manager_name,email,phone,address,city,reg_number,status,created_at FROM blood_banks WHERE id = ?', [bank_id || id]);
+                if (rows.length) return res.json({ success: true, profile: { ...rows[0], role: 'BankManager' } });
+            } catch (e) { console.error(e.message); }
+        }
+        const jsonDB = db.readJSONDB();
+        const bank = (jsonDB.blood_banks || []).find(b => b.id === (bank_id || id));
+        if (bank) {
+            const safe = { ...bank }; delete safe.password_hash; delete safe.reset_token_hash; delete safe.reset_expires;
+            return res.json({ success: true, profile: { ...safe, role: 'BankManager' } });
+        }
+        return res.status(404).json({ success: false, message: 'Bank profile not found.' });
+    }
+
     if (db.isMySQL()) {
         try {
             const pool = db.getPool();
-            const [rows] = await pool.query('SELECT * FROM inventory');
+            const [rows] = await pool.query(
+                'SELECT id,name,email,role,blood_group,mobile,city,location,last_donation,status,share_contact,created_at,bank_id FROM users WHERE id = ?',
+                [id]
+            );
+            if (rows.length) {
+                const p = rows[0];
+                return res.json({ success: true, profile: { ...p, blood: p.blood_group } });
+            }
+        } catch (e) { console.error(e.message); }
+    }
+
+    const jsonDB = db.readJSONDB();
+    const u = jsonDB.users.find(u => u.id === id);
+    if (u) {
+        const safe = { ...u }; delete safe.password_hash; delete safe.reset_token_hash; delete safe.reset_expires;
+        return res.json({ success: true, profile: safe });
+    }
+    return res.status(404).json({ success: false, message: 'Profile not found.' });
+});
+
+// PATCH /api/profile  – update own profile fields
+app.patch('/api/profile', authenticateToken, async (req, res) => {
+    const { id, role } = req.user;
+    const allowed = ['name', 'mobile', 'city', 'location', 'last_donation', 'share_contact'];
+    const updates = {};
+    for (const k of allowed) { if (req.body[k] !== undefined) updates[k] = req.body[k]; }
+
+    if (Object.keys(updates).length === 0)
+        return res.status(400).json({ success: false, message: 'No valid fields to update.' });
+
+    if (db.isMySQL()) {
+        try {
+            const pool = db.getPool();
+            const setClauses = Object.keys(updates).map(k => `\`${k}\` = ?`).join(', ');
+            await pool.query(`UPDATE users SET ${setClauses} WHERE id = ?`, [...Object.values(updates), id]);
+            // If donor, sync donors table
+            if (role === 'Donor') {
+                const donorUpdates = {};
+                if (updates.name) donorUpdates.name = updates.name;
+                if (updates.mobile) donorUpdates.mobile = updates.mobile;
+                if (updates.city) donorUpdates.city = updates.city;
+                if (updates.share_contact !== undefined) donorUpdates.share_contact = updates.share_contact;
+                if (Object.keys(donorUpdates).length) {
+                    const dc = Object.keys(donorUpdates).map(k => `\`${k}\` = ?`).join(', ');
+                    await pool.query(`UPDATE donors SET ${dc} WHERE id = ?`, [...Object.values(donorUpdates), id]);
+                }
+            }
+        } catch (e) { console.error('Profile update MySQL error:', e.message); }
+    }
+
+    const jsonDB = db.readJSONDB();
+    const u = jsonDB.users.find(u => u.id === id);
+    if (u) { Object.assign(u, updates); db.writeJSONDB(jsonDB); }
+
+    return res.json({ success: true, message: 'Profile updated.' });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+//  INVENTORY ROUTES  (Blood Bank only)
+// ════════════════════════════════════════════════════════════════════════════
+
+// GET /api/inventory  – BankManager only (own bank)
+app.get('/api/inventory', authenticateToken, authorizeRoles('Admin', 'BankManager'), async (req, res) => {
+    const { role, bank_id } = req.user;
+
+    if (db.isMySQL()) {
+        try {
+            const pool = db.getPool();
+            let rows;
+            if (role === 'Admin') {
+                [rows] = await pool.query('SELECT blood_group, units, bank_id FROM inventory');
+            } else {
+                [rows] = await pool.query('SELECT blood_group, units FROM inventory WHERE bank_id = ?', [bank_id]);
+            }
             const result = {};
             rows.forEach(r => result[r.blood_group] = r.units);
             return res.json(result);
-        } catch (e) {}
+        } catch (e) { console.error(e.message); }
     }
+
     const jsonDB = db.readJSONDB();
-    res.json(jsonDB.inventory);
+    // JSON mode: bank inventory is keyed by bank_id inside inventory if exists, or flat object
+    if (bank_id && jsonDB[`inventory_${bank_id}`]) return res.json(jsonDB[`inventory_${bank_id}`]);
+    return res.json(jsonDB.inventory || {});
 });
 
-app.post('/api/inventory', async (req, res) => {
+// POST /api/inventory  – BankManager only (own bank)
+app.post('/api/inventory', authenticateToken, authorizeRoles('BankManager'), async (req, res) => {
+    const { bank_id } = req.user;
     const inventory = req.body;
+
+    // Validate: non-negative integers only
+    for (const [bg, units] of Object.entries(inventory)) {
+        if (!Number.isInteger(Number(units)) || Number(units) < 0)
+            return res.status(400).json({ success: false, message: `Invalid unit value for ${bg}.` });
+    }
+
+    // Check bank is approved
     if (db.isMySQL()) {
         try {
             const pool = db.getPool();
+            const [bankRows] = await pool.query('SELECT status FROM blood_banks WHERE id = ?', [bank_id]);
+            if (!bankRows.length || bankRows[0].status !== 'Approved')
+                return res.status(403).json({ success: false, message: 'Your blood bank account is not yet approved.' });
+
             for (const [bg, units] of Object.entries(inventory)) {
-                await pool.query('INSERT INTO inventory (blood_group, units) VALUES (?, ?) ON DUPLICATE KEY UPDATE units = ?', [bg, units, units]);
+                const [prev] = await pool.query('SELECT units FROM inventory WHERE bank_id = ? AND blood_group = ?', [bank_id, bg]);
+                const before = prev.length ? prev[0].units : 0;
+                await pool.query(
+                    'INSERT INTO inventory (bank_id, blood_group, units) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE units = ?',
+                    [bank_id, bg, units, units]
+                );
+                await pool.query(
+                    'INSERT INTO audit_logs (bank_id, user_id, action, blood_group, before_units, after_units) VALUES (?, ?, ?, ?, ?, ?)',
+                    [bank_id, req.user.id, 'inventory_update', bg, before, units]
+                );
             }
-        } catch (e) {}
+            return res.json({ success: true, inventory });
+        } catch (e) {
+            console.error('Inventory update MySQL error:', e.message);
+            return res.status(500).json({ success: false, message: 'Server error updating inventory.' });
+        }
     }
+
+    // JSON mode: verify bank status
     const jsonDB = db.readJSONDB();
-    jsonDB.inventory = inventory;
+    const bank = (jsonDB.blood_banks || []).find(b => b.id === bank_id);
+    if (!bank || bank.status !== 'Approved')
+        return res.status(403).json({ success: false, message: 'Your blood bank account is not yet approved.' });
+
+    jsonDB[`inventory_${bank_id}`] = inventory;
     db.writeJSONDB(jsonDB);
-    res.json({ success: true, inventory });
+    return res.json({ success: true, inventory });
 });
 
-// 5. Donors API
-app.get('/api/donors', async (req, res) => {
+// ════════════════════════════════════════════════════════════════════════════
+//  DONORS ROUTES
+// ════════════════════════════════════════════════════════════════════════════
+
+// GET /api/donors  – authenticated users; privacy filter applied
+app.get('/api/donors', authenticateToken, async (req, res) => {
+    const { role } = req.user;
+    const { blood, city } = req.query;
+
+    let donors = [];
     if (db.isMySQL()) {
         try {
             const pool = db.getPool();
-            const [donors] = await pool.query('SELECT * FROM donors');
-            return res.json(donors);
-        } catch (e) {}
+            let sql = 'SELECT id, name, blood_group, city, last_donation, status, share_contact FROM donors WHERE 1=1';
+            const params = [];
+            if (blood) { sql += ' AND blood_group = ?'; params.push(blood); }
+            if (city) { sql += ' AND city LIKE ?'; params.push(`%${city}%`); }
+            const [rows] = await pool.query(sql, params);
+            donors = rows;
+        } catch (e) { console.error(e.message); }
     }
-    const jsonDB = db.readJSONDB();
-    res.json(jsonDB.donors);
+
+    if (!donors.length) {
+        let jDonors = db.readJSONDB().donors || [];
+        if (blood) jDonors = jDonors.filter(d => (d.blood || d.blood_group) === blood);
+        if (city) jDonors = jDonors.filter(d => d.city && d.city.toLowerCase().includes(city.toLowerCase()));
+        donors = jDonors;
+    }
+
+    // Privacy: remove mobile from non-admin/non-bank roles unless share_contact
+    const safeDonors = donors.map(d => {
+        const safe = {
+            id: d.id,
+            name: d.name,
+            blood: d.blood || d.blood_group,
+            blood_group: d.blood || d.blood_group,
+            city: d.city,
+            last: d.last || d.last_donation,
+            last_donation: d.last || d.last_donation,
+            status: d.status,
+            share_contact: d.share_contact
+        };
+        if (role === 'Admin' || role === 'BankManager' || d.share_contact) {
+            safe.mobile = d.mobile;
+        }
+        return safe;
+    });
+
+    return res.json(safeDonors);
 });
 
-// 6. Requests API
-app.get('/api/requests', async (req, res) => {
+// ════════════════════════════════════════════════════════════════════════════
+//  REQUESTS ROUTES
+// ════════════════════════════════════════════════════════════════════════════
+
+// GET /api/requests  – authenticated
+app.get('/api/requests', authenticateToken, async (req, res) => {
+    const { role, id: userId } = req.user;
+
     if (db.isMySQL()) {
         try {
             const pool = db.getPool();
-            const [requests] = await pool.query('SELECT * FROM requests ORDER BY id DESC');
-            return res.json(requests);
-        } catch (e) {}
+            let rows;
+            if (role === 'Admin' || role === 'BankManager') {
+                [rows] = await pool.query('SELECT * FROM requests ORDER BY id DESC');
+            } else {
+                // Acceptors see only their own requests; Donors see all (visibility by design)
+                [rows] = await pool.query('SELECT * FROM requests WHERE user_id = ? OR user_id IS NULL ORDER BY id DESC', [userId]);
+            }
+            return res.json(rows);
+        } catch (e) { console.error(e.message); }
     }
+
     const jsonDB = db.readJSONDB();
-    res.json(jsonDB.requests);
+    let reqs = jsonDB.requests || [];
+    if (role === 'Acceptor') {
+        reqs = reqs.filter(r => !r.user_id || r.user_id === userId);
+    }
+    return res.json(reqs);
 });
 
-app.post('/api/requests', async (req, res) => {
+app.post('/api/requests', authenticateToken, async (req, res) => {
     const reqData = req.body;
-    const newRequest = {
+    const { id: userId, bank_id } = req.user;
+
+    const newReq = {
         id: Date.now(),
         patient: reqData.patient,
         hospital: reqData.hospital,
@@ -563,26 +841,28 @@ app.post('/api/requests', async (req, res) => {
         units: Number(reqData.units) || 1,
         level: reqData.level || 'Routine',
         status: 'Pending',
-        date: new Date().toISOString().slice(0, 10)
+        date: new Date().toISOString().slice(0, 10),
+        bank_id: bank_id || null,
+        user_id: userId
     };
 
     if (db.isMySQL()) {
         try {
             const pool = db.getPool();
             await pool.query(
-                `INSERT INTO requests (patient, hospital, contact, blood, units, level, status, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                [newRequest.patient, newRequest.hospital, newRequest.contact, newRequest.blood, newRequest.units, newRequest.level, 'Pending', newRequest.date]
+                `INSERT INTO requests (patient, hospital, contact, blood, units, level, status, date, bank_id, user_id) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+                [newReq.patient, newReq.hospital, newReq.contact, newReq.blood, newReq.units, newReq.level, 'Pending', newReq.date, newReq.bank_id, newReq.user_id]
             );
-        } catch (e) {}
+        } catch (e) { console.error(e.message); }
     }
 
     const jsonDB = db.readJSONDB();
-    jsonDB.requests.unshift(newRequest);
+    jsonDB.requests.unshift(newReq);
     db.writeJSONDB(jsonDB);
-    res.json(newRequest);
+    res.json(newReq);
 });
 
-app.patch('/api/requests/:id/status', async (req, res) => {
+app.patch('/api/requests/:id/status', authenticateToken, authorizeRoles('Admin', 'BankManager'), async (req, res) => {
     const id = Number(req.params.id);
     const { status } = req.body;
 
@@ -590,31 +870,149 @@ app.patch('/api/requests/:id/status', async (req, res) => {
         try {
             const pool = db.getPool();
             await pool.query('UPDATE requests SET status = ? WHERE id = ?', [status, id]);
-        } catch (e) {}
+        } catch (e) { console.error(e.message); }
     }
 
     const jsonDB = db.readJSONDB();
-    const reqItem = jsonDB.requests.find(r => r.id === id);
-    if (reqItem) reqItem.status = status;
+    const r = jsonDB.requests.find(r => r.id === id);
+    if (r) r.status = status;
     db.writeJSONDB(jsonDB);
     res.json({ success: true });
 });
 
-// 7. CSV Export Endpoints
-app.get('/api/export/donors/csv', async (req, res) => {
+// ════════════════════════════════════════════════════════════════════════════
+//  ADMIN ROUTES
+// ════════════════════════════════════════════════════════════════════════════
+
+// GET /api/admin/users
+app.get('/api/admin/users', authenticateToken, authorizeRoles('Admin'), async (req, res) => {
+    if (db.isMySQL()) {
+        try {
+            const pool = db.getPool();
+            const [rows] = await pool.query(
+                'SELECT id,name,email,role,blood_group,city,status,created_at,bank_id FROM users ORDER BY created_at DESC'
+            );
+            return res.json(rows);
+        } catch (e) { console.error(e.message); }
+    }
+    const jsonDB = db.readJSONDB();
+    const safe = (jsonDB.users || []).map(u => {
+        const s = { ...u }; delete s.password_hash; delete s.reset_token_hash; delete s.reset_expires;
+        return s;
+    });
+    return res.json(safe);
+});
+
+// GET /api/admin/banks
+app.get('/api/admin/banks', authenticateToken, authorizeRoles('Admin'), async (req, res) => {
+    if (db.isMySQL()) {
+        try {
+            const pool = db.getPool();
+            const [rows] = await pool.query('SELECT id,name,manager_name,email,phone,address,city,reg_number,status,created_at FROM blood_banks ORDER BY created_at DESC');
+            return res.json(rows);
+        } catch (e) { console.error(e.message); }
+    }
+    const jsonDB = db.readJSONDB();
+    const safe = (jsonDB.blood_banks || []).map(b => {
+        const s = { ...b }; delete s.password_hash; delete s.reset_token_hash; delete s.reset_expires;
+        return s;
+    });
+    return res.json(safe);
+});
+
+// PATCH /api/admin/banks/:bankId/approve
+app.patch('/api/admin/banks/:bankId/approve', authenticateToken, authorizeRoles('Admin'), async (req, res) => {
+    const { bankId } = req.params;
+    const { status } = req.body;
+    if (!['Approved', 'Rejected', 'Pending'].includes(status))
+        return res.status(400).json({ success: false, message: 'Invalid status.' });
+
+    if (db.isMySQL()) {
+        try {
+            const pool = db.getPool();
+            await pool.query('UPDATE blood_banks SET status = ? WHERE id = ?', [status, bankId]);
+            // Seed inventory rows for newly-approved bank
+            if (status === 'Approved') {
+                const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Bombay'];
+                for (const bg of BLOOD_GROUPS) {
+                    await pool.query(
+                        'INSERT IGNORE INTO inventory (bank_id, blood_group, units) VALUES (?, ?, 0)',
+                        [bankId, bg]
+                    );
+                }
+            }
+        } catch (e) { console.error(e.message); }
+    }
+
+    const jsonDB = db.readJSONDB();
+    const bank = (jsonDB.blood_banks || []).find(b => b.id === bankId);
+    if (bank) { bank.status = status; db.writeJSONDB(jsonDB); }
+
+    return res.json({ success: true, bankId, status });
+});
+
+// PATCH /api/admin/users/:userId/status
+app.patch('/api/admin/users/:userId/status', authenticateToken, authorizeRoles('Admin'), async (req, res) => {
+    const { userId } = req.params;
+    const { status } = req.body;
+    if (!['Active', 'Suspended'].includes(status))
+        return res.status(400).json({ success: false, message: 'Invalid status.' });
+
+    if (db.isMySQL()) {
+        try {
+            const pool = db.getPool();
+            await pool.query('UPDATE users SET status = ? WHERE id = ?', [status, userId]);
+        } catch (e) { console.error(e.message); }
+    }
+
+    const jsonDB = db.readJSONDB();
+    const u = jsonDB.users.find(u => u.id === userId);
+    if (u) { u.status = status; db.writeJSONDB(jsonDB); }
+    return res.json({ success: true });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+//  BANK SELF-SERVICE
+// ════════════════════════════════════════════════════════════════════════════
+
+// GET /api/bank/profile
+app.get('/api/bank/profile', authenticateToken, authorizeRoles('BankManager'), async (req, res) => {
+    const { bank_id } = req.user;
+    if (db.isMySQL()) {
+        try {
+            const pool = db.getPool();
+            const [rows] = await pool.query(
+                'SELECT id,name,manager_name,email,phone,address,city,reg_number,status FROM blood_banks WHERE id = ?',
+                [bank_id]
+            );
+            if (rows.length) return res.json({ success: true, bank: rows[0] });
+        } catch (e) { console.error(e.message); }
+    }
+    const jsonDB = db.readJSONDB();
+    const bank = (jsonDB.blood_banks || []).find(b => b.id === bank_id);
+    if (!bank) return res.status(404).json({ success: false, message: 'Bank not found.' });
+    const safe = { ...bank }; delete safe.password_hash; delete safe.reset_token_hash; delete safe.reset_expires;
+    return res.json({ success: true, bank: safe });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+//  CSV EXPORTS
+// ════════════════════════════════════════════════════════════════════════════
+
+app.get('/api/export/donors/csv', authenticateToken, authorizeRoles('Admin', 'BankManager'), async (req, res) => {
     let donors = [];
     if (db.isMySQL()) {
         try {
             const pool = db.getPool();
-            const [rows] = await pool.query('SELECT * FROM donors');
+            const [rows] = await pool.query('SELECT id,name,blood_group,mobile,city,last_donation,status FROM donors');
             donors = rows;
         } catch (e) {}
     }
-    if (!donors.length) donors = db.readJSONDB().donors;
+    if (!donors.length) donors = db.readJSONDB().donors || [];
 
     let csv = 'ID,Name,Blood Group,Mobile,City,Last Donation,Status\n';
     donors.forEach(d => {
-        csv += `"${d.id}","${d.name}","${d.blood || d.blood_group}","${d.mobile}","${d.city}","${d.last || d.last_donation}","${d.status}"\n`;
+        csv += `"${d.id}","${d.name}","${d.blood || d.blood_group}","${d.mobile || ''}","${d.city || ''}","${d.last || d.last_donation || ''}","${d.status}"\n`;
     });
 
     res.setHeader('Content-Type', 'text/csv');
@@ -622,16 +1020,21 @@ app.get('/api/export/donors/csv', async (req, res) => {
     res.send(csv);
 });
 
-app.get('/api/export/inventory/csv', async (req, res) => {
+app.get('/api/export/inventory/csv', authenticateToken, authorizeRoles('Admin', 'BankManager'), async (req, res) => {
+    const { bank_id } = req.user;
     let inventory = {};
+
     if (db.isMySQL()) {
         try {
             const pool = db.getPool();
-            const [rows] = await pool.query('SELECT * FROM inventory');
+            const [rows] = await pool.query('SELECT blood_group, units FROM inventory WHERE bank_id = ?', [bank_id]);
             rows.forEach(r => inventory[r.blood_group] = r.units);
         } catch (e) {}
     }
-    if (!Object.keys(inventory).length) inventory = db.readJSONDB().inventory;
+    if (!Object.keys(inventory).length) {
+        const jsonDB = db.readJSONDB();
+        inventory = jsonDB[`inventory_${bank_id}`] || jsonDB.inventory || {};
+    }
 
     let csv = 'Blood Group,Available Units,Status\n';
     for (const [bg, units] of Object.entries(inventory)) {
@@ -644,19 +1047,42 @@ app.get('/api/export/inventory/csv', async (req, res) => {
     res.send(csv);
 });
 
-// 8. Emergency Alert Broadcast Notification Simulation
-app.post('/api/notifications/alert', (req, res) => {
+// ════════════════════════════════════════════════════════════════════════════
+//  EMERGENCY ALERT
+// ════════════════════════════════════════════════════════════════════════════
+
+app.post('/api/notifications/alert', authenticateToken, (req, res) => {
     const { blood, hospital, units } = req.body;
-    console.log(`🚨 EMERGENCY BROADCAST DISPATCHED: Need ${units} units of ${blood} at ${hospital}!`);
-    res.json({
-        success: true,
-        message: `Emergency alert broadcast dispatched to all registered ${blood} donors via SMS and Email notification.`
-    });
+    console.log(`🚨 EMERGENCY: ${units} units of ${blood} at ${hospital}`);
+    res.json({ success: true, message: `Emergency alert dispatched for ${blood} donors.` });
 });
 
-// Serve Static Frontend Files
+// ════════════════════════════════════════════════════════════════════════════
+//  GLOBAL ERROR HANDLER — ensures API routes always return JSON, never HTML
+// ════════════════════════════════════════════════════════════════════════════
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+    console.error('Unhandled error:', err.message);
+    if (req.path.startsWith('/api')) {
+        return res.status(500).json({ success: false, message: err.message || 'Internal server error.' });
+    }
+    next(err);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+//  STATIC FILES
+// ════════════════════════════════════════════════════════════════════════════
 app.use(express.static(__dirname));
 
-app.listen(PORT, () => {
-    console.log(`Red Nexus Server running on http://localhost:${PORT}`);
+// Fallback: serve index.html for all non-API routes (SPA)
+app.get(/^(?!\/api).*$/, (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+    const localIp = process.env.CLIENT_URL || `http://localhost:${PORT}`;
+    console.log(`\n🩸 Red Nexus Server running on:`);
+    console.log(`   Local:   http://localhost:${PORT}`);
+    console.log(`   Network: ${localIp}`);
+    console.log(`   Mode: ${process.env.DB_PASSWORD ? 'MySQL' : 'JSON fallback'}`);
 });
